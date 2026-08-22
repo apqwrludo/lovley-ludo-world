@@ -4,8 +4,12 @@ import {
   Bot,
   ChevronLeft,
   Crown,
+  Coins,
+  Gem,
   Gift,
   History,
+  Layers,
+  Target,
   Home,
   ListOrdered,
   Medal,
@@ -27,6 +31,9 @@ import { Leaderboard } from "./LeaderboardScreen";
 import { AuthPanel } from "./AuthScreen";
 import { SettingsPanel } from "./SettingsScreen";
 import { MatchHistory } from "./HistoryScreen";
+import { MissionsPanel } from "./MissionsScreen";
+import { ChestsPanel } from "./ChestsScreen";
+import { DominoGame } from "@/components/domino/DominoGame";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import {
   initAudio,
@@ -64,6 +71,9 @@ type Screen =
   | "account"
   | "history"
   | "settings"
+  | "missions"
+  | "chests"
+  | "domino"
   | "game";
 
 const colorBg: Record<string, string> = {
@@ -158,6 +168,43 @@ function LudoShell() {
     showCelebration(1600);
   };
 
+  const startDomino = () => {
+    initAudio();
+    matchId.current = crypto.randomUUID();
+    matchStart.current = Date.now();
+    savedFor.current = null;
+    sfx.start();
+    setScreen("domino");
+  };
+
+  const reportMatch = useCallback(
+    (payload: {
+      result: "win" | "loss";
+      players: number;
+      moves: number;
+      mode: "ludo" | "domino";
+    }) => {
+      const key = `${matchId.current}-${payload.result}-${payload.mode}`;
+      if (!user || !matchId.current || savedFor.current === key) return;
+      savedFor.current = key;
+      void sendResult({
+        data: {
+          matchId: matchId.current,
+          result: payload.result,
+          players: payload.players,
+          moves: payload.moves,
+          durationMs: Math.max(0, Date.now() - matchStart.current),
+          mode: payload.mode,
+        },
+      })
+        .then(() => refreshProfile())
+        .catch(() => {
+          savedFor.current = null;
+        });
+    },
+    [user, sendResult, refreshProfile],
+  );
+
   const handleRoll = () => {
     if (rolling || game.phase !== "roll") return;
     initAudio();
@@ -219,25 +266,37 @@ function LudoShell() {
     sfx.win();
     showCelebration(4200);
 
-    const key = `${matchId.current}-${game.winner}`;
     const mySeat = game.players.find((p) => !p.isBot)?.seat;
-    if (user && mySeat !== undefined && matchId.current && savedFor.current !== key) {
-      savedFor.current = key;
-      void sendResult({
-        data: {
-          matchId: matchId.current,
-          result: game.winner === mySeat ? "win" : "loss",
-          players: game.players.length,
-          moves: moveCount.current,
-          durationMs: Math.max(0, Date.now() - matchStart.current),
-        },
-      })
-        .then(() => refreshProfile())
-        .catch(() => {
-          savedFor.current = null;
-        });
+    if (mySeat !== undefined) {
+      reportMatch({
+        result: game.winner === mySeat ? "win" : "loss",
+        players: game.players.length,
+        moves: moveCount.current,
+        mode: "ludo",
+      });
     }
-  }, [game.phase, game.winner, game.players, user, refreshProfile, sendResult, showCelebration]);
+  }, [game.phase, game.winner, game.players, reportMatch, showCelebration]);
+
+  if (screen === "domino") {
+    return (
+      <DominoGame
+        playerCount={playerCount}
+        humanCount={humanCount}
+        muted={muted}
+        onMute={() => toggleMute()}
+        onHome={() => navigate("home")}
+        onFinish={({ winnerSeat, mySeat, players, moves }) => {
+          showCelebration(3200);
+          reportMatch({
+            result: winnerSeat === mySeat ? "win" : "loss",
+            players,
+            moves,
+            mode: "domino",
+          });
+        }}
+      />
+    );
+  }
 
   if (screen === "game") {
     return (
@@ -262,7 +321,7 @@ function LudoShell() {
       <Starfield />
       <div className="relative mx-auto min-h-screen w-full max-w-md px-3 pb-24 pt-3 sm:pt-5">
         <TopBar muted={muted} onMute={() => toggleMute()} onMenu={() => navigate("home")} onAccount={() => navigate("account")} />
-        {screen === "home" && <HomeScreen navigate={navigate} quickPlay={startGame} />}
+        {screen === "home" && <HomeScreen navigate={navigate} quickPlay={startGame} dominoPlay={startDomino} />}
         {screen === "setup" && (
           <SetupScreen
             players={playerCount}
@@ -303,6 +362,20 @@ function LudoShell() {
             />
           </PanelPage>
         )}
+        {screen === "missions" && (
+          <PanelPage title="المهام" icon={<Target />} onBack={() => navigate("home")}>
+            <MissionsPanel signedIn={Boolean(user)} onWalletChange={() => void refreshProfile()} />
+          </PanelPage>
+        )}
+        {screen === "chests" && (
+          <PanelPage title="الصناديق" icon={<Gift />} onBack={() => navigate("home")}>
+            <ChestsPanel
+              signedIn={Boolean(user)}
+              animations={animations}
+              onWalletChange={() => void refreshProfile()}
+            />
+          </PanelPage>
+        )}
         {screen === "account" && (
           <PanelPage title="حسابي" icon={<UserCircle2 />} onBack={() => navigate("home")}>
             <AuthPanel />
@@ -329,6 +402,14 @@ function TopBar({ muted, onMute, onMenu, onAccount }: { muted: boolean; onMute: 
         <b>{user ? profile?.points ?? 0 : "دخول"}</b>
         {!user && <Plus className="size-4" />}
       </button>
+      {user && (
+        <div className="col-span-4 mt-2 flex items-center justify-center gap-3 rounded-xl border border-ludo-gold/40 bg-ludo-panel/70 px-3 py-1.5 text-xs">
+          <span className="flex items-center gap-1 text-ludo-gold"><Coins className="size-4" /> {profile?.gold ?? 0}</span>
+          <span className="flex items-center gap-1 text-ludo-lagoon"><Gem className="size-4" /> {profile?.diamonds ?? 0}</span>
+          <span className="text-ludo-pink">المستوى {profile?.level ?? 1}</span>
+          <span className="text-ludo-soft">{(profile?.xp ?? 0) % 300}/300 XP</span>
+        </div>
+      )}
     </header>
   );
 }
@@ -343,7 +424,7 @@ function Brand() {
   );
 }
 
-function HomeScreen({ navigate, quickPlay }: { navigate: (s: Screen) => void; quickPlay: () => void }) {
+function HomeScreen({ navigate, quickPlay, dominoPlay }: { navigate: (s: Screen) => void; quickPlay: () => void; dominoPlay: () => void }) {
   return (
     <main className="mt-4 space-y-4">
       <section className="royal-panel glow-rise relative overflow-hidden p-5 text-center">
@@ -364,13 +445,16 @@ function HomeScreen({ navigate, quickPlay }: { navigate: (s: Screen) => void; qu
         <ModeCard color="amber" icon={<Users />} title="لعب محلي" subtitle="2 – 4 لاعبين" onClick={() => navigate("setup")} />
         <ModeCard color="ruby" icon={<ListOrdered />} title="المتصدرون" subtitle="ترتيب اللاعبين" onClick={() => navigate("leaderboard")} />
         <ModeCard color="lagoon" icon={<BookOpen />} title="القواعد" subtitle="تعلّم بسرعة" onClick={() => navigate("rules")} />
+        <ModeCard color="lagoon" icon={<Layers />} title="دومينو" subtitle="حجارة ثلاثية الأبعاد" onClick={dominoPlay} />
+        <ModeCard color="ruby" icon={<Target />} title="المهام" subtitle="يومية وأسبوعية" onClick={() => navigate("missions")} />
+        <ModeCard color="amber" icon={<Gift />} title="الصناديق" subtitle="مكافآت وجواهر" onClick={() => navigate("chests")} />
         <ModeCard color="amber" icon={<Trophy />} title="البطولات" subtitle="جوائز ملكية" onClick={() => navigate("tournaments")} />
         <ModeCard color="palm" icon={<UserCircle2 />} title="حسابي" subtitle="إحصائياتك" onClick={() => navigate("account")} />
         <ModeCard color="lagoon" icon={<History />} title="سجل المباريات" subtitle="نتائجك الأخيرة" onClick={() => navigate("history")} />
         <ModeCard color="ruby" icon={<Settings />} title="الإعدادات" subtitle="الصوت والرسوم" onClick={() => navigate("settings")} />
       </div>
 
-      <button className="reward-banner" type="button" onClick={() => navigate("rewards")}>
+      <button className="reward-banner" type="button" onClick={() => navigate("chests")}>
         <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-ludo-pink/20"><Gift className="size-9 text-ludo-gold" /></span>
         <span className="min-w-0 text-right"><b className="block text-lg text-ludo-gold">هدية اليوم جاهزة!</b><small className="text-ludo-soft">افتح الصندوق واجمع العملات</small></span>
         <ChevronLeft className="size-6 shrink-0 text-ludo-gold" />

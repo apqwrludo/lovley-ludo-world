@@ -10,6 +10,12 @@ export type Profile = {
   wins: number;
   losses: number;
   points: number;
+  gold: number;
+  diamonds: number;
+  xp: number;
+  level: number;
+  banner: string;
+  frame: string;
   updated_at: string;
 };
 

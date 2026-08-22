@@ -7,6 +7,7 @@ export type MatchSubmission = {
   players: number;
   moves: number;
   durationMs: number;
+  mode?: "ludo" | "domino";
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -30,7 +31,8 @@ export const submitMatchResult = createServerFn({ method: "POST" })
     if (!Number.isFinite(durationMs) || durationMs < 0 || durationMs > 6 * 60 * 60 * 1000) {
       throw new Error("invalid duration");
     }
-    return { matchId: input.matchId, result: input.result, players, moves, durationMs };
+    const mode = input.mode === "domino" ? "domino" : "ludo";
+    return { matchId: input.matchId, result: input.result, players, moves, durationMs, mode };
   })
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase.rpc("record_game_result", {
@@ -39,13 +41,15 @@ export const submitMatchResult = createServerFn({ method: "POST" })
       _match_id: data.matchId,
       _moves: data.moves,
       _duration_ms: data.durationMs,
-      _mode: "local",
+      _mode: data.mode,
     });
     if (error) return { ok: false as const, reason: error.message };
     const row = Array.isArray(rows) ? rows[0] : rows;
     return {
       ok: true as const,
       points: (row as { points?: number } | null)?.points ?? 0,
+      gold: (row as { gold?: number } | null)?.gold ?? 0,
+      xp: (row as { xp?: number } | null)?.xp ?? 0,
       duplicate: (row as { duplicate?: boolean } | null)?.duplicate ?? false,
     };
   });
