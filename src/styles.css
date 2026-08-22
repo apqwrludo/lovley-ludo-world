@@ -349,7 +349,7 @@
 }
 /* خامة الساحة من التصميم المرجعي للمستخدم */
 .domino-felt::before {
-  background: url("/__l5e/assets-v1/7bb370ca-e9af-4588-ac80-dd97954b58fd/domino-felt.png") center / cover no-repeat, #b41f83;
+  background: url("/__l5e/assets-v1/1ad6ff20-f1b5-4cf4-ba17-49d906a6550c/domino-felt.png") 0 0 / 128px 128px repeat, radial-gradient(80% 70% at 50% 45%, #c1289b 0%, #a91b8b 55%, #8c1370 100%);
   border-radius: 1.6rem;
   inset: 0;
   box-shadow:
