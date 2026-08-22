@@ -4,28 +4,13 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/*
- * Design system definition.
- *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
- *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
- */
-
 @theme inline {
+  --font-sans: "Cairo", sans-serif;
+  --font-display: "Changa", sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -45,100 +30,116 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-ring-offset-background: var(--background);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+  --color-ludo-deep: var(--ludo-deep);
+  --color-ludo-purple: var(--ludo-purple);
+  --color-ludo-panel: var(--ludo-panel);
+  --color-ludo-gold: var(--ludo-gold);
+  --color-ludo-pink: var(--ludo-pink);
+  --color-ludo-soft: var(--ludo-soft);
+  --color-ludo-ruby: var(--ludo-ruby);
+  --color-ludo-palm: var(--ludo-palm);
+  --color-ludo-amber: var(--ludo-amber);
+  --color-ludo-lagoon: var(--ludo-lagoon);
+  --color-ludo-surface: var(--ludo-surface);
+  --color-ludo-board: var(--ludo-board);
+  --color-ludo-line: var(--ludo-line);
+  --color-ludo-ink: var(--ludo-ink);
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
-}
-
-.dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  --radius: 0.75rem;
+  --background: oklch(0.15 0.09 302);
+  --foreground: oklch(0.97 0.02 95);
+  --card: oklch(0.22 0.11 307);
+  --card-foreground: oklch(0.97 0.02 95);
+  --popover: oklch(0.2 0.1 307);
+  --popover-foreground: oklch(0.97 0.02 95);
+  --primary: oklch(0.8 0.16 85);
+  --primary-foreground: oklch(0.18 0.08 304);
+  --secondary: oklch(0.36 0.16 320);
+  --secondary-foreground: oklch(0.98 0.01 90);
+  --muted: oklch(0.27 0.08 305);
+  --muted-foreground: oklch(0.77 0.05 305);
+  --accent: oklch(0.67 0.24 345);
+  --accent-foreground: oklch(0.98 0.01 90);
+  --destructive: oklch(0.62 0.25 25);
+  --destructive-foreground: oklch(0.98 0.01 90);
+  --border: oklch(0.76 0.15 84 / 45%);
+  --input: oklch(0.35 0.1 308);
+  --ring: oklch(0.8 0.16 85);
+  --ludo-deep: oklch(0.12 0.08 302);
+  --ludo-purple: oklch(0.28 0.16 310);
+  --ludo-panel: oklch(0.22 0.11 307);
+  --ludo-gold: oklch(0.84 0.17 84);
+  --ludo-pink: oklch(0.66 0.26 339);
+  --ludo-soft: oklch(0.83 0.05 307);
+  --ludo-ruby: oklch(0.6 0.25 24);
+  --ludo-palm: oklch(0.69 0.19 146);
+  --ludo-amber: oklch(0.84 0.18 89);
+  --ludo-lagoon: oklch(0.66 0.19 237);
+  --ludo-surface: oklch(0.96 0.025 95);
+  --ludo-board: oklch(0.35 0.1 307);
+  --ludo-line: oklch(0.22 0.05 303);
+  --ludo-ink: oklch(0.2 0.05 305);
+  --shadow-token: 0 2px 0 oklch(0.18 0.04 300), 0 0 10px color-mix(in oklab, currentColor 40%, transparent);
+  --shadow-board: 0 0 0 3px var(--ludo-gold), 0 0 0 7px var(--ludo-purple), 0 0 26px color-mix(in oklab, var(--ludo-pink) 65%, transparent);
+  --gradient-board: linear-gradient(135deg, color-mix(in oklab, var(--ludo-gold) 10%, transparent), transparent 42%);
 }
 
 @layer base {
-  * {
-    border-color: var(--color-border);
-  }
-
-  body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
-  }
+  * { border-color: var(--border); }
+  html { background: var(--ludo-deep); }
+  body { margin: 0; min-width: 320px; background: var(--background); color: var(--foreground); font-family: var(--font-sans); }
+  button { letter-spacing: 0; }
 }
+
+.ludo-shell {
+  position: relative;
+  overflow-x: hidden;
+  color: var(--foreground);
+  background:
+    radial-gradient(circle at 50% -10%, color-mix(in oklab, var(--ludo-pink) 26%, transparent), transparent 38%),
+    linear-gradient(180deg, var(--ludo-purple), var(--ludo-deep) 45%, oklch(0.1 0.07 300));
+}
+
+.stars { position: absolute; inset: 0; opacity: .45; background-repeat: repeat; }
+.stars-a { background-image: radial-gradient(circle, var(--ludo-gold) 0 1px, transparent 1.5px); background-size: 43px 43px; animation: stars-drift 18s linear infinite; }
+.stars-b { background-image: radial-gradient(circle, var(--ludo-pink) 0 1.5px, transparent 2px); background-size: 91px 77px; background-position: 17px 28px; animation: stars-pulse 4s ease-in-out infinite alternate; }
+
+.royal-panel { border: 1px solid color-mix(in oklab, var(--ludo-gold) 62%, transparent); border-radius: 1rem; background: linear-gradient(145deg, color-mix(in oklab, var(--ludo-panel) 92%, transparent), color-mix(in oklab, var(--ludo-purple) 82%, transparent)); box-shadow: inset 0 0 25px color-mix(in oklab, var(--ludo-pink) 11%, transparent), 0 0 18px color-mix(in oklab, var(--ludo-pink) 28%, transparent); }
+.title-ribbon { position: relative; border-block: 1px solid var(--ludo-gold); padding: .55rem 1rem; background: linear-gradient(90deg, transparent, var(--ludo-pink), var(--ludo-purple), var(--ludo-pink), transparent); color: var(--ludo-gold); font-family: var(--font-display); font-weight: 800; text-shadow: 0 2px 0 var(--ludo-deep), 0 0 8px var(--ludo-pink); }
+.coin-pill { display: flex; min-width: 4.8rem; align-items: center; justify-content: center; gap: .3rem; border: 1px solid color-mix(in oklab, var(--ludo-gold) 70%, transparent); border-radius: 999px; background: var(--ludo-panel); padding: .35rem .5rem; color: var(--ludo-gold); box-shadow: inset 0 0 8px color-mix(in oklab, var(--ludo-gold) 18%, transparent), 0 0 10px color-mix(in oklab, var(--ludo-pink) 30%, transparent); font-size: .75rem; }
+.text-shadow-glow { text-shadow: 0 2px 0 var(--ludo-deep), 0 0 10px var(--ludo-gold), 0 0 16px var(--ludo-pink); }
+
+.game-tile { display: flex; min-height: 8.4rem; flex-direction: column; align-items: center; justify-content: center; gap: .2rem; border: 2px solid color-mix(in oklab, var(--tile) 70%, var(--ludo-gold)); border-radius: .9rem; background: linear-gradient(150deg, color-mix(in oklab, var(--tile) 35%, var(--ludo-panel)), var(--ludo-panel) 64%); box-shadow: inset 0 0 20px color-mix(in oklab, var(--tile) 20%, transparent), 0 4px 0 color-mix(in oklab, var(--tile) 30%, var(--ludo-deep)), 0 0 14px color-mix(in oklab, var(--tile) 42%, transparent); color: var(--foreground); transition: transform .2s, filter .2s; }
+.game-tile:hover { filter: brightness(1.16); transform: translateY(-2px); }
+.game-tile:active { transform: translateY(3px); }
+.game-tile-icon { display: grid; width: 3.3rem; height: 3.3rem; place-items: center; border: 1px solid color-mix(in oklab, var(--tile) 80%, var(--ludo-gold)); border-radius: 50%; background: color-mix(in oklab, var(--tile) 40%, var(--ludo-purple)); box-shadow: 0 0 12px color-mix(in oklab, var(--tile) 70%, transparent); color: var(--ludo-gold); }
+.game-tile-icon svg { width: 1.8rem; height: 1.8rem; }
+.game-tile b { margin-top: .25rem; font-size: 1rem; }
+.game-tile small { color: var(--ludo-soft); font-size: .7rem; }
+.reward-banner, .list-card { display: flex; width: 100%; align-items: center; gap: .75rem; border: 1px solid color-mix(in oklab, var(--ludo-gold) 46%, transparent); border-radius: .8rem; background: color-mix(in oklab, var(--ludo-panel) 90%, transparent); padding: .75rem; box-shadow: inset 0 0 15px color-mix(in oklab, var(--ludo-pink) 10%, transparent); }
+.avatar-orb { display: grid; width: 2.5rem; height: 2.5rem; flex: none; place-items: center; border: 2px solid var(--ludo-gold); border-radius: 50%; color: var(--ludo-deep); box-shadow: 0 0 8px color-mix(in oklab, var(--ludo-gold) 55%, transparent); }
+.avatar-orb svg { width: 1.2rem; }
+.reward-hero, .trophy-stage { display: flex; flex-direction: column; align-items: center; gap: .35rem; border-radius: .85rem; background: radial-gradient(circle at 50% 20%, color-mix(in oklab, var(--ludo-pink) 30%, transparent), transparent 58%); padding: 1.25rem; text-align: center; }
+.reward-hero b, .trophy-stage h3 { color: var(--ludo-gold); font-family: var(--font-display); font-size: 1.25rem; }
+.reward-card { display: flex; min-height: 10rem; flex-direction: column; align-items: center; justify-content: space-between; border: 1px solid color-mix(in oklab, var(--ludo-gold) 45%, transparent); border-radius: .8rem; background: var(--ludo-panel); padding: .8rem; text-align: center; }
+.countdown { display: grid; width: 100%; grid-template-columns: repeat(3,1fr); gap: .5rem; margin-top: .7rem; }
+.countdown span { border: 1px solid color-mix(in oklab, var(--ludo-gold) 45%, transparent); border-radius: .5rem; background: var(--ludo-panel); padding: .4rem; font-size: .65rem; }
+.countdown b { display: block; color: var(--ludo-gold); font-size: 1.2rem; }
+
+.player-plate { display: flex; min-width: 0; align-items: center; gap: .45rem; border: 1px solid color-mix(in oklab, var(--seat) 55%, var(--ludo-gold)); border-radius: .7rem; background: color-mix(in oklab, var(--ludo-panel) 94%, transparent); padding: .35rem .45rem; opacity: .75; transition: .25s; }
+.player-plate small { color: var(--ludo-soft); font-size: .6rem; }
+.player-plate-active { opacity: 1; box-shadow: 0 0 13px color-mix(in oklab, var(--seat) 75%, transparent), inset 0 0 9px color-mix(in oklab, var(--seat) 18%, transparent); }
+.turn-dot { width: .45rem; height: .45rem; flex: none; border-radius: 50%; background: var(--seat); box-shadow: 0 0 9px var(--seat); animation: stars-pulse .8s ease-in-out infinite alternate; }
+
+.token-star { display: grid; width: 88%; height: 88%; place-items: center; clip-path: polygon(50% 0%,61% 34%,98% 35%,68% 56%,79% 91%,50% 70%,21% 91%,32% 56%,2% 35%,39% 34%); border: 0; color: color-mix(in oklab, currentColor 85%, var(--ludo-surface)); font-size: clamp(.55rem,2.5vw,1rem); line-height: 1; filter: drop-shadow(0 2px 0 var(--ludo-deep)) drop-shadow(0 0 4px currentColor); text-shadow: inset 0 1px var(--ludo-surface); }
+
+@keyframes dice-roll { 0%{transform:rotate(0) scale(1)} 30%{transform:rotate(100deg) scale(1.13)} 65%{transform:rotate(220deg) scale(.92)} 100%{transform:rotate(360deg) scale(1)} }
+@keyframes token-ready { from{filter:brightness(1) drop-shadow(0 0 2px currentColor)} to{filter:brightness(1.45) drop-shadow(0 0 8px currentColor)} }
+@keyframes stars-drift { to{transform:translateY(43px)} }
+@keyframes stars-pulse { from{opacity:.25} to{opacity:.75} }
+.animate-dice-roll { animation: dice-roll .55s ease-in-out; }
+.animate-token-ready { animation: token-ready .75s ease-in-out infinite alternate; }
+
+@media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; } }
