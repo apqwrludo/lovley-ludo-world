@@ -245,24 +245,40 @@ function LudoShell() {
     [user, sendResult, refreshProfile],
   );
 
-  const handleRoll = () => {
+  // ===== المرحلة 9: رمية موثّقة من السيرفر =====
+  const handleRoll = async () => {
     if (rolling || game.phase !== "roll") return;
     initAudio();
     setRolling(true);
     sfx.diceRoll();
     haptics.diceRoll();
-    window.setTimeout(() => {
-      const value = rollDie();
-      setGame((g) => {
-        const next = applyRoll(g, value);
-        if (next.turn !== g.turn) window.setTimeout(() => { sfx.turnPass(); haptics.turnPass(); }, 180);
-        return next;
-      });
-      sfx.diceLand(value);
-      haptics.diceLand();
-      setRolling(false);
-    }, 620);
+    const seq = (rollSeq.current += 1);
+    const spin = new Promise((resolve) => window.setTimeout(resolve, 620));
+    let value = 0;
+    let trusted = false;
+    try {
+      const [res] = await Promise.all([
+        sendRoll({ data: { matchId: matchId.current, seq } }),
+        spin,
+      ]);
+      value = res.value;
+      trusted = Boolean(res.sig);
+    } catch {
+      await spin;
+      value = rollDie();
+      trusted = false;
+    }
+    setVerified(trusted);
+    setGame((g) => {
+      const next = applyRoll(g, value);
+      if (next.turn !== g.turn) window.setTimeout(() => { sfx.turnPass(); haptics.turnPass(); }, 180);
+      return next;
+    });
+    sfx.diceLand(value);
+    haptics.diceLand();
+    setRolling(false);
   };
+
 
   const commitMove = useCallback((state: GameState, move: ReturnType<typeof legalMoves>[number]) => {
     moveCount.current += 1;
