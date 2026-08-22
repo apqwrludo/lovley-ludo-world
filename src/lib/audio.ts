@@ -37,8 +37,11 @@ export function setMuted(value: boolean) {
 /** مستوى المؤثرات من 0 إلى 1 */
 export function loadVolume(): number {
   if (typeof window === "undefined") return volume;
-  const raw = Number(window.localStorage.getItem(VOLUME_KEY));
-  if (Number.isFinite(raw) && raw >= 0 && raw <= 1) volume = raw;
+  const stored = window.localStorage.getItem(VOLUME_KEY);
+  if (stored !== null) {
+    const raw = Number(stored);
+    if (Number.isFinite(raw) && raw >= 0 && raw <= 1) volume = raw;
+  }
   return volume;
 }
 
