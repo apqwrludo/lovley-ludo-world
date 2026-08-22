@@ -307,7 +307,7 @@
   width: 100%;
   min-height: 42vh;
   padding: .5rem 0;
-  overflow: auto;
+  overflow: hidden;
   transition: min-height .3s ease;
   scrollbar-width: none;
 }
