@@ -325,18 +325,69 @@
   box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--ludo-gold) 45%, transparent), inset 0 18px 40px rgb(0 0 0 / .35);
   pointer-events: none;
 }
-.domino-chain {
+.domino-stage {
+  position: absolute;
+  inset: 0;
   direction: ltr;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  align-content: center;
-  gap: .3rem .18rem;
+}
+.domino-chain {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
   transform-origin: center center;
   transition: transform .25s ease;
   will-change: transform;
 }
+.domino-slot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  transition: transform .22s ease;
+}
+/* خامة الساحة من التصميم المرجعي للمستخدم */
+.domino-felt::before {
+  background-image: url("/__l5e/assets-v1/7bb370ca-e9af-4588-ac80-dd97954b58fd/domino-felt.png");
+  background-size: 240px 240px;
+  background-repeat: repeat;
+  border-radius: 1.6rem;
+  inset: 0;
+  box-shadow:
+    inset 0 0 0 3px color-mix(in oklab, var(--ludo-gold) 55%, transparent),
+    inset 0 24px 60px rgb(0 0 0 / .3);
+}
+.domino-preview {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: .7rem;
+  border-radius: 1.6rem;
+  background: color-mix(in oklab, var(--ludo-deep) 78%, transparent);
+  backdrop-filter: blur(4px);
+}
+.domino-preview-row { display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem; max-width: 90%; }
+.domino-preview-bar {
+  display: block;
+  width: 62%;
+  height: .55rem;
+  border-radius: 999px;
+  background: rgb(0 0 0 / .45);
+  border: 1px solid color-mix(in oklab, var(--ludo-gold) 45%, transparent);
+  overflow: hidden;
+}
+.domino-preview-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--ludo-gold-dark), var(--ludo-gold));
+  transition: width .12s linear;
+}
+.domino-hand .domino-tile { width: 2.3rem; height: 4.4rem; }
 .domino-arena .domino-tile { filter: drop-shadow(0 6px 10px rgb(0 0 0 / .45)); }
 
 

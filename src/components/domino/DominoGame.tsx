@@ -16,6 +16,7 @@ import {
   type PlacedTile,
   type Tile,
 } from "@/lib/domino/engine";
+import { chainScale, layoutChain } from "@/lib/domino/layout";
 import { cn } from "@/lib/utils";
 import modeDomino from "@/assets/mode-domino.png";
 import avatarTiger from "@/assets/avatar-tiger.png";
@@ -360,9 +361,8 @@ export function DominoGame({
           </div>
         )}
 
-        <section className="mt-auto pt-4">
-          <h2 className="ribbon-title mb-3">حجارتك</h2>
-          <div className="flex flex-wrap justify-center gap-2 rounded-2xl border border-ludo-gold/35 bg-ludo-panel/55 p-2">
+        <section className="pt-1.5">
+          <div className="domino-hand flex flex-wrap justify-center gap-1.5 rounded-2xl border border-ludo-gold/35 bg-ludo-panel/55 p-1.5">
             {(me?.hand ?? []).map((tile) => (
               <DominoTile
                 key={tile.id}
