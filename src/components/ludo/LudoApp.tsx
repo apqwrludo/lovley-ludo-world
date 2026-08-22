@@ -493,7 +493,13 @@ function LudoShell() {
         muted={muted}
         celebrate={celebrate}
         events={events}
+        verified={verified}
+        remaining={remaining}
+        timerActive={timerActive}
+        serverSynced={serverSynced}
+        meName={game.players.find((p) => !p.isBot)?.name ?? "أنا"}
         onMute={() => toggleMute()}
+
         onRoll={handleRoll}
         onToken={handleToken}
         onHome={() => navigate("home")}
