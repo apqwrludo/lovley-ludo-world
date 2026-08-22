@@ -78,7 +78,11 @@ export function LudoBoard({ state, moves, onTokenClick }: Props) {
         const stack = stackIndex.get(t.id) ?? 0;
         const yardIndex = Number(t.id.split("-")[1]);
         const c = centerFor(t.seat, t.offset, yardIndex);
-        const jitter = t.offset < 0 ? 0 : stack * 0.14;
+        const total = counts.get(cellKeys.get(t.id) ?? "") ?? 1;
+        // إزاحة متناظرة حول مركز الخانة حتى تبقى المجموعة متمركزة تمامًا
+        const spread = t.offset < 0 || total < 2 ? 0 : 0.17;
+        const shift = spread === 0 ? 0 : (stack - (total - 1) / 2) * spread;
+        const size = total > 1 ? U * 0.86 : U * 1.02;
         const movable = movableIds.has(t.id);
         const finished = t.offset === FINISH_OFFSET;
 
@@ -94,13 +98,14 @@ export function LudoBoard({ state, moves, onTokenClick }: Props) {
               movable ? "z-20 cursor-pointer" : "z-10 cursor-default",
             )}
             style={{
-              left: `${(c.x + jitter) * U}%`,
-              top: `${(c.y - jitter) * U}%`,
-              width: `${U * 1.08}%`,
-              height: `${U * 1.08}%`,
+              left: `${(c.x + shift) * U}%`,
+              top: `${(c.y - shift * 0.5) * U}%`,
+              width: `${size}%`,
+              height: `${size}%`,
               transform: "translate(-50%, -50%)",
             }}
           >
+
             <span
               className={cn(
                 "coin-token",
