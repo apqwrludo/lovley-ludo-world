@@ -107,6 +107,17 @@ export const sfx = {
   diceLand(value: number) {
     tone(440 + value * 55, 0, 0.13, "triangle", 0.2);
   },
+  /** دخول قطعة للمسار عند 6 */
+  enter() {
+    tone(392, 0, 0.1, "triangle", 0.16);
+    tone(587, 0.09, 0.14, "triangle", 0.18);
+    noiseBurst(0, 0.09, 0.12, 2400);
+  },
+  /** انتقال الدور للاعب التالي */
+  turnPass() {
+    tone(340, 0, 0.09, "sine", 0.1);
+    tone(260, 0.08, 0.1, "sine", 0.09);
+  },
   move() {
     tone(680, 0, 0.06, "sine", 0.14);
     tone(920, 0.06, 0.07, "sine", 0.12);
