@@ -128,7 +128,7 @@ export type LedgerEntry = {
   gold_delta: number;
   diamonds_delta: number;
   xp_delta: number;
-  detail: Record<string, unknown>;
+  detail: Record<string, string | number | boolean | null>;
   created_at: string;
 };
 
