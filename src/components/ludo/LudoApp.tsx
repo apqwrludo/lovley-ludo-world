@@ -55,6 +55,10 @@ import { ChestsPanel } from "./ChestsScreen";
 import { LedgerPanel } from "./LedgerScreen";
 import { OpenedChestsPanel } from "./OpenedChestsScreen";
 import { DominoGame } from "@/components/domino/DominoGame";
+import { SplashScreen } from "./SplashScreen";
+import { GateScreen } from "./GateScreen";
+import { MatchSummary, type MatchEvent } from "./MatchSummary";
+import { haptics, loadHaptics, setHaptics as persistHaptics } from "@/lib/haptics";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import {
   initAudio,
@@ -122,6 +126,10 @@ function LudoShell() {
   const [game, setGame] = useState<GameState>(() => createGame(4, 1));
   const [rolling, setRolling] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [haptic, setHaptic] = useState(true);
+  const [stage, setStage] = useState<"splash" | "gate" | "app">("splash");
+  const [guest, setGuest] = useState(false);
+  const [events, setEvents] = useState<MatchEvent[]>([]);
   const [volume, setVolume] = useState(0.6);
   const [animations, setAnimations] = useState(true);
   const [celebrate, setCelebrate] = useState(false);
@@ -134,6 +142,7 @@ function LudoShell() {
   useEffect(() => {
     setMuted(loadMuted());
     setVolume(loadVolume());
+    setHaptic(loadHaptics());
     const anim = loadAnimations();
     setAnimations(anim);
     applyAnimations(anim);
@@ -142,6 +151,12 @@ function LudoShell() {
   const changeVolume = (next: number) => {
     setVolume(next);
     persistVolume(next);
+  };
+
+  const changeHaptics = (next: boolean) => {
+    setHaptic(next);
+    persistHaptics(next);
+    if (next) haptics.tap();
   };
 
   const changeAnimations = (next: boolean) => {
@@ -176,6 +191,7 @@ function LudoShell() {
   const navigate = useCallback((next: Screen) => {
     initAudio();
     sfx.tap();
+    haptics.tap();
     setScreen(next);
   }, []);
 
@@ -186,6 +202,7 @@ function LudoShell() {
     matchId.current = crypto.randomUUID();
     matchStart.current = Date.now();
     moveCount.current = 0;
+    setEvents([]);
     sfx.start();
     setScreen("game");
     showCelebration(1600);
@@ -233,20 +250,64 @@ function LudoShell() {
     initAudio();
     setRolling(true);
     sfx.diceRoll();
+    haptics.diceRoll();
     window.setTimeout(() => {
       const value = rollDie();
-      setGame((g) => applyRoll(g, value));
+      setGame((g) => {
+        const next = applyRoll(g, value);
+        if (next.turn !== g.turn) window.setTimeout(() => { sfx.turnPass(); haptics.turnPass(); }, 180);
+        return next;
+      });
       sfx.diceLand(value);
+      haptics.diceLand();
       setRolling(false);
     }, 620);
   };
 
   const commitMove = useCallback((state: GameState, move: ReturnType<typeof legalMoves>[number]) => {
     moveCount.current += 1;
-    if (move.captures.length) sfx.capture();
-    else if (move.finishes) sfx.home();
-    else sfx.move();
-    return applyMove(state, move);
+    const seat = currentPlayer(state).seat;
+    const kind: MatchEvent["kind"] = move.captures.length
+      ? "capture"
+      : move.finishes
+        ? "home"
+        : move.entersBoard
+          ? "enter"
+          : "move";
+
+    // الصوت والاهتزاز مضبوطان على توقيت انتقال القطعة (300ms)
+    if (kind === "capture") {
+      sfx.move();
+      window.setTimeout(() => { sfx.capture(); haptics.capture(); }, 300);
+    } else if (kind === "home") {
+      sfx.move();
+      window.setTimeout(() => { sfx.home(); haptics.home(); }, 300);
+    } else if (kind === "enter") {
+      sfx.enter();
+      haptics.enter();
+    } else {
+      sfx.move();
+      haptics.move();
+    }
+
+    setEvents((prev) => [
+      ...prev.slice(-40),
+      {
+        kind,
+        seat,
+        seatLabel: currentPlayer(state).name,
+        from: move.from,
+        to: move.to,
+        die: state.dice ?? 0,
+        at: Date.now(),
+      },
+    ]);
+
+    const next = applyMove(state, move);
+    if (next.turn !== state.turn && next.phase !== "over") {
+      window.setTimeout(() => { sfx.turnPass(); haptics.turnPass(); }, 420);
+    }
+    return next;
   }, []);
 
   const handleToken = (id: string) => {
@@ -265,6 +326,7 @@ function LudoShell() {
           const value = rollDie();
           setGame((g) => applyRoll(g, value));
           sfx.diceLand(value);
+          haptics.diceLand();
           setRolling(false);
         }, 560);
       } else if (moves.length) {
@@ -287,6 +349,7 @@ function LudoShell() {
   useEffect(() => {
     if (game.phase !== "over" || game.winner === null) return;
     sfx.win();
+    haptics.win();
     showCelebration(4200);
 
     const mySeat = game.players.find((p) => !p.isBot)?.seat;
@@ -299,6 +362,20 @@ function LudoShell() {
       });
     }
   }, [game.phase, game.winner, game.players, reportMatch, showCelebration]);
+
+  if (stage === "splash") {
+    return <SplashScreen onDone={() => setStage(guestReady() || user ? "app" : "gate")} />;
+  }
+
+  if (stage === "gate" && !user && !guest) {
+    return (
+      <GateScreen
+        onSignIn={() => { setStage("app"); setScreen("account"); }}
+        onSignUp={() => { setStage("app"); setScreen("account"); }}
+        onGuest={() => { markGuest(); setGuest(true); setStage("app"); setScreen("home"); }}
+      />
+    );
+  }
 
   if (screen === "domino") {
     return (
@@ -329,6 +406,7 @@ function LudoShell() {
         rolling={rolling}
         muted={muted}
         celebrate={celebrate}
+        events={events}
         onMute={() => toggleMute()}
         onRoll={handleRoll}
         onToken={handleToken}
@@ -379,9 +457,11 @@ function LudoShell() {
               muted={muted}
               volume={volume}
               animations={animations}
+              haptics={haptic}
               onMuted={(v) => toggleMute(v)}
               onVolume={changeVolume}
               onAnimations={changeAnimations}
+              onHaptics={changeHaptics}
             />
           </PanelPage>
         )}
@@ -419,6 +499,14 @@ function LudoShell() {
       {celebrate && <Confetti />}
     </div>
   );
+}
+
+const GUEST_KEY = "abqor-guest";
+function guestReady() {
+  return typeof window !== "undefined" && window.localStorage.getItem(GUEST_KEY) === "1";
+}
+function markGuest() {
+  if (typeof window !== "undefined") window.localStorage.setItem(GUEST_KEY, "1");
 }
 
 function TopBar({ muted, onMute, onMenu, onAccount }: { muted: boolean; onMute: () => void; onMenu: () => void; onAccount: () => void }) {
@@ -591,7 +679,7 @@ function BottomNav({ active, navigate }: { active: Screen; navigate: (s: Screen)
   );
 }
 
-function GameScreen({ state, moves, rolling, muted, celebrate, onMute, onRoll, onToken, onHome, onRules, onRestart }: { state: GameState; moves: ReturnType<typeof legalMoves>; rolling: boolean; muted: boolean; celebrate: boolean; onMute: () => void; onRoll: () => void; onToken: (id: string) => void; onHome: () => void; onRules: () => void; onRestart: () => void }) {
+function GameScreen({ state, moves, rolling, muted, celebrate, events, onMute, onRoll, onToken, onHome, onRules, onRestart }: { state: GameState; moves: ReturnType<typeof legalMoves>; rolling: boolean; muted: boolean; celebrate: boolean; events: MatchEvent[]; onMute: () => void; onRoll: () => void; onToken: (id: string) => void; onHome: () => void; onRules: () => void; onRestart: () => void }) {
   const player = currentPlayer(state);
   const seat = SEATS[player.seat];
   return <div className="ludo-shell min-h-screen" dir="rtl"><Starfield /><div className="crown-pattern fixed inset-0" aria-hidden="true" /><main className="relative mx-auto flex min-h-screen w-full max-w-xl flex-col px-2 pb-4 pt-2">
@@ -600,7 +688,9 @@ function GameScreen({ state, moves, rolling, muted, celebrate, onMute, onRoll, o
     <section className="board-wood relative mx-auto my-2 w-full max-w-[min(92vw,34rem)]"><LudoBoard state={state} moves={moves} onTokenClick={onToken} /></section>
     <div className="grid grid-cols-2 gap-2">{state.players.slice(2).map((p) => <PlayerPlate key={p.seat} state={state} seatId={p.seat} />)}</div>
     <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 pt-4"><div className="min-w-0 text-center"><p className="truncate text-sm font-bold text-ludo-gold">{state.message}</p><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ludo-panel"><span className={cn("block h-full w-1/2", colorBg[seat.token])} /></div></div><Dice value={state.dice} rolling={rolling} disabled={state.phase !== "roll" || player.isBot} onRoll={onRoll} seatToken={seat.token} /></div>
-    {state.phase === "over" && <div className="fixed inset-0 z-[70] grid place-items-center bg-ludo-deep/85 p-5 backdrop-blur-sm"><div className="royal-panel celebrate-pop w-full max-w-sm p-6 text-center"><Crown className="mx-auto size-24 text-ludo-gold" fill="currentColor" /><h2 className="title-ribbon text-2xl">مبروك الفوز!</h2><p className="my-4 text-lg">{player.name} هو ملك الطاولة</p><Button variant="play" size="xl" className="w-full" onClick={onRestart}>لعبة جديدة</Button><Button variant="ghostGold" className="mt-2 w-full" onClick={onHome}>العودة للرئيسية</Button></div></div>}
+    {state.phase === "over" && (
+      <MatchSummary winnerName={player.name} events={events} onRestart={onRestart} onHome={onHome} />
+    )}
   </main>{celebrate && <Confetti />}</div>;
 }
 
