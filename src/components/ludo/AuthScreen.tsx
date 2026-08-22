@@ -30,7 +30,7 @@ function authMessage(raw: string, mode: "login" | "signup"): string {
 
 export function AuthPanel() {
   const { user, profile, loading, signOut, refreshProfile } = useAuth();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
