@@ -121,3 +121,59 @@ export const openChest = createServerFn({ method: "POST" })
       }
     );
   });
+
+export type LedgerEntry = {
+  id: string;
+  kind: string;
+  gold_delta: number;
+  diamonds_delta: number;
+  xp_delta: number;
+  detail: Record<string, string | number | boolean | null>;
+  created_at: string;
+};
+
+/** سجل المعاملات: كل مكافآت الصناديق والمهام والمباريات للاعب الحالي */
+export const fetchTransactions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("economy_transactions")
+      .select("id, kind, gold_delta, diamonds_delta, xp_delta, detail, created_at")
+      .order("created_at", { ascending: false })
+      .limit(40);
+    if (error) return { ok: false as const, reason: error.message, entries: [] as LedgerEntry[] };
+    return { ok: true as const, reason: "ok", entries: (data ?? []) as unknown as LedgerEntry[] };
+  });
+
+export type OwnedItem = {
+  id: string;
+  kind: "avatar" | "banner" | "frame";
+  code: string;
+  rarity: string;
+  created_at: string;
+};
+
+/** الصناديق المفتوحة: المعاملات من نوع chest مع العناصر التي حصل عليها اللاعب */
+export const fetchChestOpenings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const [tx, items] = await Promise.all([
+      context.supabase
+        .from("economy_transactions")
+        .select("id, kind, gold_delta, diamonds_delta, xp_delta, detail, created_at")
+        .like("kind", "chest%")
+        .order("created_at", { ascending: false })
+        .limit(30),
+      context.supabase
+        .from("user_items")
+        .select("id, kind, code, rarity, created_at")
+        .order("created_at", { ascending: false })
+        .limit(60),
+    ]);
+    return {
+      ok: !tx.error && !items.error,
+      reason: tx.error?.message ?? items.error?.message ?? "ok",
+      openings: (tx.data ?? []) as unknown as LedgerEntry[],
+      items: (items.data ?? []) as unknown as OwnedItem[],
+    };
+  });

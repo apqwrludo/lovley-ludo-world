@@ -17,6 +17,8 @@ import {
   type Tile,
 } from "@/lib/domino/engine";
 import { cn } from "@/lib/utils";
+import modeDomino from "@/assets/mode-domino.png";
+import avatarTiger from "@/assets/avatar-tiger.png";
 
 const PIP_POSITIONS: Record<number, [number, number][]> = {
   0: [],
@@ -216,6 +218,7 @@ export function DominoGame({
             <Home />
           </Button>
           <div className="text-center">
+            <img src={modeDomino} alt="" width={512} height={512} className="asset-shine mx-auto size-12" />
             <h1 className="font-display text-xl font-black text-ludo-gold text-shadow-glow">دومينو عبقور</h1>
             <p className="text-xs text-ludo-soft">
               المخزون: {state.stock.length} حجرة
@@ -230,15 +233,13 @@ export function DominoGame({
           {state.players.map((p) => (
             <div
               key={p.seat}
-              className={cn(
-                "player-plate",
-                state.turn === p.seat && "player-plate-active",
-              )}
-              style={{ ["--seat" as string]: "var(--ludo-gold)" }}
+              className={cn("ledger-row gap-2 p-2", state.turn === p.seat && "ring-2 ring-ludo-gold")}
             >
-              <span className="avatar-orb bg-ludo-purple text-ludo-gold">
-                {p.isBot ? <Bot /> : <Crown />}
-              </span>
+              {p.isBot ? (
+                <span className="avatar-orb bg-ludo-purple text-ludo-gold"><Bot /></span>
+              ) : (
+                <img src={avatarTiger} alt="" width={512} height={512} loading="lazy" className="size-9 rounded-full ring-2 ring-ludo-gold" />
+              )}
               <span className="min-w-0 flex-1">
                 <b className="block truncate text-xs">{p.name}</b>
                 <small className="flex items-center gap-1 text-ludo-soft">
@@ -249,7 +250,7 @@ export function DominoGame({
           ))}
         </div>
 
-        <section className="board-frame my-3 min-h-40 p-3">
+        <section className="felt-table my-3 min-h-40">
           {state.board.length === 0 ? (
             <p className="grid h-32 place-items-center text-sm text-ludo-soft">
               ابدأ بوضع أي حجرة على الطاولة
@@ -268,7 +269,7 @@ export function DominoGame({
           )}
         </section>
 
-        <p className="text-center text-sm font-bold text-ludo-gold">{state.message}</p>
+        <p className="ledger-row justify-center text-center text-sm font-bold text-ludo-gold">{state.message}</p>
 
         {selected && (
           <div className="mt-2 grid grid-cols-2 gap-2">
@@ -301,8 +302,8 @@ export function DominoGame({
         )}
 
         <section className="mt-auto pt-4">
-          <h2 className="mb-2 text-xs font-bold text-ludo-soft">حجارتك</h2>
-          <div className="flex flex-wrap justify-center gap-2">
+          <h2 className="ribbon-title mb-3">حجارتك</h2>
+          <div className="felt-table flex flex-wrap justify-center gap-2">
             {(me?.hand ?? []).map((tile) => (
               <DominoTile
                 key={tile.id}

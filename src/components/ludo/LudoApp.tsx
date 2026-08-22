@@ -35,6 +35,8 @@ import mode2p from "@/assets/mode-2p.png";
 import mode4p from "@/assets/mode-4p.png";
 import modeDomino from "@/assets/mode-domino.png";
 import modeMissions from "@/assets/mode-missions.png";
+import modeLedger from "@/assets/mode-ledger.png";
+import chestOpen from "@/assets/chest-open.png";
 import modeRules from "@/assets/mode-rules.png";
 import navHome from "@/assets/nav-home.png";
 import navStore from "@/assets/nav-store.png";
@@ -50,6 +52,8 @@ import { SettingsPanel } from "./SettingsScreen";
 import { MatchHistory } from "./HistoryScreen";
 import { MissionsPanel } from "./MissionsScreen";
 import { ChestsPanel } from "./ChestsScreen";
+import { LedgerPanel } from "./LedgerScreen";
+import { OpenedChestsPanel } from "./OpenedChestsScreen";
 import { DominoGame } from "@/components/domino/DominoGame";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import {
@@ -90,6 +94,8 @@ type Screen =
   | "settings"
   | "missions"
   | "chests"
+  | "ledger"
+  | "opened"
   | "domino"
   | "game";
 
@@ -393,6 +399,16 @@ function LudoShell() {
             />
           </PanelPage>
         )}
+        {screen === "ledger" && (
+          <PanelPage title="سجل المعاملات" icon={<History />} onBack={() => navigate("home")}>
+            <LedgerPanel signedIn={Boolean(user)} />
+          </PanelPage>
+        )}
+        {screen === "opened" && (
+          <PanelPage title="الصناديق المفتوحة" icon={<Gift />} onBack={() => navigate("home")}>
+            <OpenedChestsPanel signedIn={Boolean(user)} />
+          </PanelPage>
+        )}
         {screen === "account" && (
           <PanelPage title="حسابي" icon={<UserCircle2 />} onBack={() => navigate("home")}>
             <AuthPanel />
@@ -481,6 +497,8 @@ function HomeScreen({ navigate, quickPlay, dominoPlay }: { navigate: (s: Screen)
           <SmallTile img={navFriends} label="الغرف" onClick={() => navigate("rooms")} />
           <SmallTile img={navTrophy} label="البطولات" onClick={() => navigate("tournaments")} />
           <SmallTile img={diceRoyal} label="السجل" onClick={() => navigate("history")} />
+          <SmallTile img={modeLedger} label="المعاملات" onClick={() => navigate("ledger")} />
+          <SmallTile img={chestOpen} label="صناديقي" onClick={() => navigate("opened")} />
           <SmallTile img={avatarTiger} label="حسابي" onClick={() => navigate("account")} />
           <SmallTile img={navSettings} label="الإعدادات" onClick={() => navigate("settings")} />
         </div>
