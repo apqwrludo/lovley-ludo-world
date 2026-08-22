@@ -1,20 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Mic, Play, Send, Smile, Square, X, MessageCircle, Zap } from "lucide-react";
+import { Mic, Play, Send, Settings2, Smile, Square, X, MessageCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { sfx } from "@/lib/audio";
+import { duckFor, sfx } from "@/lib/audio";
 import { haptics } from "@/lib/haptics";
-
-const QUICK: string[] = [
-  "يا سلام! 👏",
-  "دورك يا بطل",
-  "حظ موفّق 🍀",
-  "بسرعة لو سمحت ⏱️",
-  "لعبة قوية!",
-  "سامحني 😅",
-  "شوف هذي 😎",
-  "الحق عليّ",
-];
+import {
+  DEFAULT_QUICK_CHAT,
+  loadNoiseReduction,
+  loadQuickChat,
+  saveQuickChat,
+  setNoiseReduction,
+} from "@/lib/prefs";
 
 const EMOJIS = ["👑", "🎲", "🔥", "😂", "😮", "😭", "💎", "🎯", "👏", "🤝", "🙈", "🍀", "💥", "🥳", "😤", "🫡"];
 
@@ -31,11 +27,33 @@ type ChatMessage = {
 
 type Tab = "text" | "quick" | "emoji";
 
+/** سياق المباراة لاقتراح عبارات مناسبة (لا يؤثر على منطق اللعب مطلقًا) */
+export type ChatContext = {
+  myTurn?: boolean;
+  secondsLeft?: number;
+  lastEvent?: "capture" | "captured" | "six" | "home" | "win" | "loss" | null;
+};
+
+/** اقتراحات عربية حسب حالة المباراة الحالية */
+function suggestFor(ctx: ChatContext | undefined): string[] {
+  if (!ctx) return [];
+  const out: string[] = [];
+  if (ctx.lastEvent === "capture") out.push("آسف! ما كان مقصود 😅", "لعبة نظيفة 😎");
+  if (ctx.lastEvent === "captured") out.push("لا بأس، راجعة أقوى 💪", "خلّها عليّ 😤");
+  if (ctx.lastEvent === "six") out.push("ستة! 🎲🔥");
+  if (ctx.lastEvent === "home") out.push("وصلت البيت 🏠✨");
+  if (ctx.lastEvent === "win") out.push("لعب ممتاز، شكرًا 🤝");
+  if (ctx.lastEvent === "loss") out.push("مبروك، تستاهل 👏");
+  if (ctx.myTurn === false) out.push("دورك يا بطل");
+  if (typeof ctx.secondsLeft === "number" && ctx.secondsLeft <= 5) out.push("بسرعة لو سمحت ⏱️");
+  return Array.from(new Set(out)).slice(0, 4);
+}
+
 /**
  * دردشة غرفة المباراة: نصية عربية RTL + دردشة سريعة + إيموجي + رسائل صوتية حقيقية
  * (تسجيل عبر الميكروفون). الدردشة معزولة تمامًا عن منطق اللعبة ولا تؤثر على النتيجة.
  */
-export function MatchChat({ meName }: { meName: string }) {
+export function MatchChat({ meName, context }: { meName: string; context?: ChatContext }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("quick");
   const [draft, setDraft] = useState("");
@@ -43,6 +61,11 @@ export function MatchChat({ meName }: { meName: string }) {
   const [recording, setRecording] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
+  const [quick, setQuick] = useState<string[]>(DEFAULT_QUICK_CHAT);
+  const [editingQuick, setEditingQuick] = useState(false);
+  const [newPhrase, setNewPhrase] = useState("");
+  const [noise, setNoise] = useState(true);
+  const suggestions = suggestFor(context);
   const recorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const startedAt = useRef(0);
@@ -50,6 +73,11 @@ export function MatchChat({ meName }: { meName: string }) {
   const urls = useRef<string[]>([]);
 
   useEffect(() => () => urls.current.forEach((u) => URL.revokeObjectURL(u)), []);
+
+  useEffect(() => {
+    setQuick(loadQuickChat());
+    setNoise(loadNoiseReduction());
+  }, []);
 
   useEffect(() => {
     if (open) setUnread(0);
@@ -66,7 +94,7 @@ export function MatchChat({ meName }: { meName: string }) {
 
   const send = (kind: ChatMessage["kind"], text: string) => {
     if (!text.trim()) return;
-    sfx.tap();
+    sfx.chat();
     haptics.tap();
     push({ mine: true, author: meName, kind, text });
     setDraft("");
@@ -75,7 +103,11 @@ export function MatchChat({ meName }: { meName: string }) {
   const startRecording = async () => {
     setMicError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: noise
+          ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
+          : true,
+      });
       const rec = new MediaRecorder(stream);
       chunks.current = [];
       startedAt.current = Date.now();
@@ -163,12 +195,76 @@ export function MatchChat({ meName }: { meName: string }) {
           </nav>
 
           {tab === "quick" && (
-            <div className="chat-quick">
-              {QUICK.map((q) => (
-                <button type="button" key={q} className="chat-quick-btn press-3d" onClick={() => send("quick", q)}>
-                  {q}
+            <div className="space-y-2">
+              {suggestions.length > 0 && (
+                <div className="chat-quick" dir="rtl">
+                  {suggestions.map((q) => (
+                    <button
+                      type="button"
+                      key={`s-${q}`}
+                      className="chat-quick-btn press-3d ring-1 ring-ludo-gold/70"
+                      onClick={() => send("quick", q)}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="chat-quick" dir="rtl">
+                {quick.map((q) => (
+                  <button type="button" key={q} className="chat-quick-btn press-3d" onClick={() => send("quick", q)}>
+                    {q}
+                    {editingQuick && (
+                      <b
+                        role="button"
+                        aria-label="حذف العبارة"
+                        className="ms-1 text-ludo-pink"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const next = quick.filter((x) => x !== q);
+                          setQuick(next);
+                          saveQuickChat(next);
+                        }}
+                      >
+                        ×
+                      </b>
+                    )}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="chat-quick-btn press-3d"
+                  onClick={() => setEditingQuick((v) => !v)}
+                  aria-label="تخصيص العبارات"
+                >
+                  <Settings2 className="size-3.5" /> تخصيص
                 </button>
-              ))}
+              </div>
+              {editingQuick && (
+                <form
+                  className="chat-compose"
+                  dir="rtl"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const value = newPhrase.trim();
+                    if (!value) return;
+                    const next = Array.from(new Set([...quick, value])).slice(0, 12);
+                    setQuick(next);
+                    saveQuickChat(next);
+                    setNewPhrase("");
+                  }}
+                >
+                  <input
+                    dir="rtl"
+                    className="chat-input"
+                    maxLength={40}
+                    value={newPhrase}
+                    onChange={(e) => setNewPhrase(e.target.value)}
+                    placeholder="أضف عبارتك السريعة…"
+                  />
+                  <Button type="submit" variant="royal" size="icon" aria-label="إضافة"><Send /></Button>
+                </form>
+              )}
             </div>
           )}
 
@@ -212,6 +308,19 @@ export function MatchChat({ meName }: { meName: string }) {
               {recording ? <><Square className="size-4" /> إيقاف وإرسال</> : <><Mic className="size-4" /> رسالة صوتية</>}
             </Button>
             {recording && <span className="rec-dot" aria-hidden="true" />}
+            <Button
+              type="button"
+              variant={noise ? "royal" : "ghostGold"}
+              size="sm"
+              aria-pressed={noise}
+              onClick={() => {
+                const next = !noise;
+                setNoise(next);
+                setNoiseReduction(next);
+              }}
+            >
+              {noise ? "خفض الضوضاء: مُفعّل" : "خفض الضوضاء: موقوف"}
+            </Button>
           </footer>
           {micError && <p className="px-3 pb-2 text-center text-[11px] text-ludo-pink">{micError}</p>}
         </section>
@@ -222,7 +331,9 @@ export function MatchChat({ meName }: { meName: string }) {
 
 function VoiceNote({ url, seconds }: { url: string; seconds: number }) {
   const audio = useRef<HTMLAudioElement | null>(null);
+  const releaseRef = useRef<(() => void) | null>(null);
   const [playing, setPlaying] = useState(false);
+  useEffect(() => () => releaseRef.current?.(), []);
   return (
     <span className="voice-note">
       <button
@@ -232,7 +343,9 @@ function VoiceNote({ url, seconds }: { url: string; seconds: number }) {
         onClick={() => {
           const el = audio.current;
           if (!el) return;
-          if (playing) { el.pause(); el.currentTime = 0; setPlaying(false); return; }
+          if (playing) { el.pause(); el.currentTime = 0; setPlaying(false); releaseRef.current?.(); releaseRef.current = null; return; }
+          const release = duckFor(seconds + 0.4);
+          releaseRef.current = release;
           void el.play();
           setPlaying(true);
         }}
@@ -243,7 +356,12 @@ function VoiceNote({ url, seconds }: { url: string; seconds: number }) {
         {Array.from({ length: 14 }, (_, i) => <i key={i} style={{ animationDelay: `${i * 0.06}s` }} />)}
       </span>
       <small>{seconds}ث</small>
-      <audio ref={audio} src={url} onEnded={() => setPlaying(false)} preload="metadata" />
+      <audio
+        ref={audio}
+        src={url}
+        onEnded={() => { setPlaying(false); releaseRef.current?.(); releaseRef.current = null; }}
+        preload="metadata"
+      />
     </span>
   );
 }
