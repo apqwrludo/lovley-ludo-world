@@ -60,3 +60,37 @@ describe("تشكيل سلسلة الدومينو الرأسية", () => {
     expect(TILE_SHORT).toBeLessThan(TILE_LONG);
   });
 });
+
+describe("Visual Regression للتشكيل عبر أحجام الشاشات", () => {
+  const screens: Array<[string, number, number]> = [
+    ["iPhone SE", 320, 380],
+    ["iPhone 12", 390, 470],
+    ["iPhone Max", 430, 520],
+    ["Tablet", 768, 700],
+  ];
+
+  it.each(screens)("%s: أول قطعة في المركز والحجارة لا تتراكب", (_n, w, h) => {
+    for (const count of [1, 6, 14, 28]) {
+      const layout = layoutChain(chain(count), h);
+      expect(layout.items[0]!.x).toBe(0);
+      expect(layout.items[0]!.y).toBe(0);
+      // لا تراكب داخل نفس العمود
+      for (let c = 0; c < layout.columns; c += 1) {
+        const col = layout.items
+          .filter((it) => it.column === c)
+          .sort((a, b) => a.y - b.y);
+        for (let i = 1; i < col.length; i += 1) {
+          const prev = col[i - 1]!;
+          const cur = col[i]!;
+          const halfPrev = (prev.double ? TILE_SHORT : TILE_LONG) / 2;
+          const halfCur = (cur.double ? TILE_SHORT : TILE_LONG) / 2;
+          expect(cur.y - prev.y + 0.01).toBeGreaterThanOrEqual(halfPrev + halfCur);
+        }
+      }
+      // السلسلة كاملة تدخل الساحة بعد التصغير
+      const scale = chainScale(layout, w, h);
+      expect(layout.width * scale).toBeLessThanOrEqual(w + 0.5);
+      expect(layout.height * scale).toBeLessThanOrEqual(h + 0.5);
+    }
+  });
+});
