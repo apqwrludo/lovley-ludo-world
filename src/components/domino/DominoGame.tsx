@@ -245,22 +245,25 @@ export function DominoGame({
     [state.board, arena.h],
   );
   const boardScale = useMemo(() => chainScale(layout, arena.w, arena.h), [layout, arena]);
+  const layoutValid = useMemo(() => isChainLayoutValid(layout), [layout]);
 
-  /** طقطقة/تجاوب عند وضع كل حجرة لتأكيد صحة الترتيب سمعيًا */
+  /** طقطقة/تجاوب عند وضع كل حجرة — تعمل فقط عندما يكون التشكيل صحيحًا */
   const lastCount = useRef(state.board.length);
   const [landedId, setLandedId] = useState<string | null>(null);
   useEffect(() => {
     const count = state.board.length;
     if (count > lastCount.current) {
       const placed = state.board[state.board.length - 1];
-      sfx.dominoPlace(count);
-      window.setTimeout(() => sfx.dominoSnap(), 90);
-      haptics.tap();
+      if (layoutValid) {
+        sfx.dominoPlace(count);
+        window.setTimeout(() => sfx.dominoSnap(), 90);
+        haptics.tap();
+      }
       setLandedId(placed?.tile.id ?? null);
       window.setTimeout(() => setLandedId(null), 460);
     }
     lastCount.current = count;
-  }, [state.board]);
+  }, [state.board, layoutValid]);
 
   /** معاينة/تحميل سريع لترتيب الحجارة عند بداية كل جولة */
   const [progress, setProgress] = useState(0);
