@@ -1,9 +1,8 @@
-import { SEATS, cellForOffset, FINISH_OFFSET } from "@/lib/ludo/board";
+import { SEATS } from "@/lib/ludo/board";
+import { UNIT as U, centerFor, tokenPlacements } from "@/lib/ludo/layout";
 import type { GameState, Move } from "@/lib/ludo/engine";
 import { cn } from "@/lib/utils";
 import boardAsset from "@/assets/ludo-board.png.asset.json";
-
-const U = 100 / 15;
 
 type Props = {
   state: GameState;
@@ -19,31 +18,11 @@ function CrownGlyph() {
   );
 }
 
-/** مركز الخانة بإحداثيات الشبكة (15×15) */
-function centerFor(seat: 0 | 1 | 2 | 3, offset: number, yardIndex: number) {
-  if (offset < 0) {
-    const slot = SEATS[seat].yard[yardIndex] ?? SEATS[seat].yard[0];
-    return slot ?? { x: 7.5, y: 7.5 };
-  }
-  const cell = cellForOffset(seat, offset);
-  return { x: cell.x + 0.5, y: cell.y + 0.5 };
-}
-
 export function LudoBoard({ state, moves, onTokenClick }: Props) {
   const movableIds = new Set(moves.map((m) => m.tokenId));
   const targets = new Map(moves.map((m) => [m.tokenId, m.to]));
 
-  // ترتيب القطع المتكدّسة على نفس الخانة
-  const stackIndex = new Map<string, number>();
-  const counts = new Map<string, number>();
-  const cellKeys = new Map<string, string>();
-  for (const t of state.tokens) {
-    const cell = t.offset < 0 ? `yard-${t.id}` : keyOf(t.seat, t.offset);
-    cellKeys.set(t.id, cell);
-    const n = counts.get(cell) ?? 0;
-    stackIndex.set(t.id, n);
-    counts.set(cell, n + 1);
-  }
+  const placements = new Map(tokenPlacements(state).map((p) => [p.id, p]));
 
   return (
     <div className="relative aspect-square w-full select-none">
@@ -77,16 +56,10 @@ export function LudoBoard({ state, moves, onTokenClick }: Props) {
       {/* القطع */}
       {state.tokens.map((t) => {
         const seat = SEATS[t.seat];
-        const stack = stackIndex.get(t.id) ?? 0;
-        const yardIndex = Number(t.id.split("-")[1]);
-        const c = centerFor(t.seat, t.offset, yardIndex);
-        const total = counts.get(cellKeys.get(t.id) ?? "") ?? 1;
-        // إزاحة متناظرة حول مركز الخانة حتى تبقى المجموعة متمركزة تمامًا
-        const spread = t.offset < 0 || total < 2 ? 0 : 0.17;
-        const shift = spread === 0 ? 0 : (stack - (total - 1) / 2) * spread;
-        const size = total > 1 ? U * 0.86 : U * 1.02;
+        const placement = placements.get(t.id);
+        if (!placement) return null;
+        const { center, size, finished } = placement;
         const movable = movableIds.has(t.id);
-        const finished = t.offset === FINISH_OFFSET;
 
         return (
           <button
@@ -100,8 +73,8 @@ export function LudoBoard({ state, moves, onTokenClick }: Props) {
               movable ? "z-20 cursor-pointer" : "z-10 cursor-default",
             )}
             style={{
-              left: `${(c.x + shift) * U}%`,
-              top: `${(c.y - shift * 0.5) * U}%`,
+              left: `${center.x * U}%`,
+              top: `${center.y * U}%`,
               width: `${size}%`,
               height: `${size}%`,
               transform: "translate(-50%, -50%)",
@@ -129,7 +102,3 @@ export function LudoBoard({ state, moves, onTokenClick }: Props) {
   );
 }
 
-function keyOf(seat: number, offset: number) {
-  const c = cellForOffset(seat as 0 | 1 | 2 | 3, offset);
-  return `${c.x}:${c.y}`;
-}
