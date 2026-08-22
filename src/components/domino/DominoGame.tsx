@@ -1,7 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Bot, Crown, Home, Layers, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Bot,
+  Crown,
+  Home,
+  Layers,
+  Maximize2,
+  Minus,
+  Plus,
+  RotateCcw,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sfx } from "@/lib/audio";
+import { haptics } from "@/lib/haptics";
+import { usePinchZoom } from "@/hooks/usePinchZoom";
 import {
   createDomino,
   currentDominoPlayer,
@@ -66,7 +79,9 @@ function Half({ value }: { value: number }) {
   );
 }
 
-function DominoTile({
+const Half2 = memo(Half);
+
+const DominoTile = memo(function DominoTile({
   a,
   b,
   horizontal,
@@ -83,9 +98,9 @@ function DominoTile({
 }) {
   const content = (
     <>
-      <Half value={a} />
+      <Half2 value={a} />
       <span className="domino-divider" />
-      <Half value={b} />
+      <Half2 value={b} />
     </>
   );
   if (!onClick) {
@@ -110,7 +125,7 @@ function DominoTile({
       {content}
     </button>
   );
-}
+});
 
 export function DominoGame({
   playerCount,
@@ -125,13 +140,20 @@ export function DominoGame({
   muted: boolean;
   onMute: () => void;
   onHome: () => void;
-  onFinish: (payload: { winnerSeat: number; mySeat: number; players: number; moves: number }) => void;
+  onFinish: (payload: {
+    winnerSeat: number;
+    mySeat: number;
+    players: number;
+    moves: number;
+  }) => void;
 }) {
   const [state, setState] = useState<DominoState>(() => createDomino(playerCount, humanCount));
   const [selected, setSelected] = useState<string | null>(null);
   const moveCount = useRef(0);
   const reported = useRef(false);
   const railRef = useRef<HTMLElement>(null);
+  /** طبقة التكبير/التمرير باللمس (لا تؤثر على المحاذاة لأنها transform فقط) */
+  const zoom = usePinchZoom<HTMLDivElement>();
 
   const player = currentDominoPlayer(state);
   const myMoves = useMemo(() => (player.isBot ? [] : legalPlays(state)), [state, player.isBot]);
@@ -139,7 +161,13 @@ export function DominoGame({
   const mySeat = state.players.find((p) => !p.isBot)?.seat ?? 0;
   const me = state.players.find((p) => p.seat === mySeat);
 
+  /** قفل الحركة أثناء المعاينة وأنيميشن تأكيد التشكيل */
+  const [preview, setPreview] = useState(true);
+  const [confirming, setConfirming] = useState(false);
+  const locked = preview || confirming;
+
   const commit = (move: DominoMove) => {
+    if (locked) return;
     moveCount.current += 1;
     sfx.move();
     setSelected(null);
@@ -147,6 +175,7 @@ export function DominoGame({
   };
 
   const handleTileClick = (tile: Tile) => {
+    if (locked) return;
     const options = myMoves.filter((m) => m.tileId === tile.id);
     if (!options.length) return;
     if (options.length === 1) {
@@ -217,8 +246,23 @@ export function DominoGame({
   );
   const boardScale = useMemo(() => chainScale(layout, arena.w, arena.h), [layout, arena]);
 
+  /** طقطقة/تجاوب عند وضع كل حجرة لتأكيد صحة الترتيب سمعيًا */
+  const lastCount = useRef(state.board.length);
+  const [landedId, setLandedId] = useState<string | null>(null);
+  useEffect(() => {
+    const count = state.board.length;
+    if (count > lastCount.current) {
+      const placed = state.board[state.board.length - 1];
+      sfx.dominoPlace(count);
+      window.setTimeout(() => sfx.dominoSnap(), 90);
+      haptics.tap();
+      setLandedId(placed?.tile.id ?? null);
+      window.setTimeout(() => setLandedId(null), 460);
+    }
+    lastCount.current = count;
+  }, [state.board]);
+
   /** معاينة/تحميل سريع لترتيب الحجارة عند بداية كل جولة */
-  const [preview, setPreview] = useState(true);
   const [progress, setProgress] = useState(0);
   useEffect(() => {
     if (!preview) return;
@@ -230,6 +274,11 @@ export function DominoGame({
       if (pct >= 100) {
         window.clearInterval(id);
         setPreview(false);
+        // أنيميشن فخم لتأكيد التشكيل قبل السماح بالحركة
+        setConfirming(true);
+        sfx.dominoConfirm();
+        haptics.tap();
+        window.setTimeout(() => setConfirming(false), 750);
       }
     }, 60);
     return () => window.clearInterval(id);
@@ -240,6 +289,7 @@ export function DominoGame({
     reported.current = false;
     setSelected(null);
     sfx.start();
+    zoom.reset();
     setState(createDomino(playerCount, humanCount));
     setPreview(true);
   };
@@ -256,10 +306,17 @@ export function DominoGame({
           </Button>
           <div className="flex items-center justify-center gap-2">
             <img src={modeDomino} alt="" width={512} height={512} className="asset-shine size-6" />
-            <h1 className="font-display text-base font-black text-ludo-gold text-shadow-glow">دومينو عبقور</h1>
+            <h1 className="font-display text-base font-black text-ludo-gold text-shadow-glow">
+              دومينو عبقور
+            </h1>
             <span className="text-[11px] text-ludo-soft">المخزون {state.stock.length}</span>
           </div>
-          <Button variant="neonIcon" size="icon" aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"} onClick={onMute}>
+          <Button
+            variant="neonIcon"
+            size="icon"
+            aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"}
+            onClick={onMute}
+          >
             {muted ? <VolumeX /> : <Volume2 />}
           </Button>
         </header>
@@ -274,9 +331,18 @@ export function DominoGame({
               )}
             >
               {p.isBot ? (
-                <span className="grid size-6 place-items-center rounded-full bg-ludo-purple text-ludo-gold"><Bot className="size-3.5" /></span>
+                <span className="grid size-6 place-items-center rounded-full bg-ludo-purple text-ludo-gold">
+                  <Bot className="size-3.5" />
+                </span>
               ) : (
-                <img src={avatarTiger} alt="" width={512} height={512} loading="lazy" className="size-6 rounded-full ring-1 ring-ludo-gold" />
+                <img
+                  src={avatarTiger}
+                  alt=""
+                  width={512}
+                  height={512}
+                  loading="lazy"
+                  className="size-6 rounded-full ring-1 ring-ludo-gold"
+                />
               )}
               <b className="max-w-16 truncate text-[11px]">{p.name}</b>
               <small className="flex items-center gap-0.5 text-[10px] text-ludo-soft">
@@ -298,37 +364,88 @@ export function DominoGame({
             </p>
           ) : (
             <div className="domino-stage" data-testid="domino-chain">
-              <div className="domino-chain" style={{ transform: `scale(${boardScale})` }}>
-                {layout.items.map((item) => (
-                  <span
-                    key={item.id}
-                    className="domino-slot"
-                    data-first={item.id === layout.items[0]!.id ? "true" : undefined}
-                    style={{ transform: `translate(-50%, -50%) translate(${item.x}px, ${item.y}px)` }}
-                  >
-                    <DominoTile a={item.left} b={item.right} horizontal={item.double} />
-                  </span>
-                ))}
+              <div className="domino-zoom" ref={zoom.ref}>
+                <div className="domino-chain" style={{ transform: `scale(${boardScale})` }}>
+                  {layout.items.map((item) => (
+                    <span
+                      key={item.id}
+                      className={cn("domino-slot", landedId === item.id && "domino-slot-land")}
+                      data-first={item.id === layout.items[0]!.id ? "true" : undefined}
+                      style={{
+                        transform: `translate(-50%, -50%) translate(${item.x}px, ${item.y}px)`,
+                      }}
+                    >
+                      <DominoTile a={item.left} b={item.right} horizontal={item.double} />
+                    </span>
+                  ))}
+                </div>
               </div>
+            </div>
+          )}
+
+          {state.board.length > 0 && (
+            <div className="domino-zoom-tools">
+              <button
+                type="button"
+                className="domino-zoom-btn"
+                aria-label="تكبير"
+                onClick={() => zoom.zoomBy(1.25)}
+              >
+                <Plus className="size-4" />
+              </button>
+              <button
+                type="button"
+                className="domino-zoom-btn"
+                aria-label="تصغير"
+                onClick={() => zoom.zoomBy(0.8)}
+              >
+                <Minus className="size-4" />
+              </button>
+              {zoom.zoomed && (
+                <button
+                  type="button"
+                  className="domino-zoom-btn"
+                  aria-label="إعادة الضبط"
+                  onClick={zoom.reset}
+                >
+                  <Maximize2 className="size-4" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {confirming && (
+            <div className="domino-confirm" data-testid="domino-confirm">
+              <i />
+              <i />
+              <i />
+              <b className="font-display">التشكيل جاهز</b>
             </div>
           )}
 
           {preview && (
             <div className="domino-preview" data-testid="domino-preview">
-              <b className="font-display text-lg text-ludo-gold text-shadow-glow">معاينة ترتيب الجولة</b>
+              <b className="font-display text-lg text-ludo-gold text-shadow-glow">
+                معاينة ترتيب الجولة
+              </b>
               <div className="domino-preview-row">
                 {(me?.hand ?? []).slice(0, 7).map((tile) => (
                   <DominoTile key={tile.id} a={tile.a} b={tile.b} horizontal={tile.a === tile.b} />
                 ))}
               </div>
-              <span className="domino-preview-bar"><i style={{ width: `${progress}%` }} /></span>
-              <small className="text-xs text-ludo-soft">جارٍ تجهيز الساحة… {Math.round(progress)}%</small>
+              <span className="domino-preview-bar">
+                <i style={{ width: `${progress}%` }} />
+              </span>
+              <small className="text-xs text-ludo-soft">
+                جارٍ تجهيز الساحة… {Math.round(progress)}%
+              </small>
             </div>
           )}
         </section>
 
-
-        <p className="ledger-row justify-center text-center text-sm font-bold text-ludo-gold">{state.message}</p>
+        <p className="ledger-row justify-center text-center text-sm font-bold text-ludo-gold">
+          {state.message}
+        </p>
 
         {selected && (
           <div className="mt-2 grid grid-cols-2 gap-2">
@@ -340,7 +457,6 @@ export function DominoGame({
             </Button>
           </div>
         )}
-
 
         {noMove && (
           <div className="mt-2 grid grid-cols-2 gap-2">

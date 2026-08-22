@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   Crown,
   Coins,
+  Eye,
   Gem,
   Gift,
   History,
@@ -14,8 +15,11 @@ import {
   ListOrdered,
   Medal,
   Menu,
+  MessageSquare,
   Plus,
+  RotateCcw,
   Settings,
+  Smile,
   ShieldCheck,
   Sparkles,
   Trophy,
@@ -76,6 +80,7 @@ import { submitMatchResult } from "@/lib/match.functions";
 import { forfeitServerTurn, rollServerDie, startServerTurn } from "@/lib/live.functions";
 import { TurnTimer } from "./TurnTimer";
 import { MatchChat, type ChatContext } from "./MatchChat";
+import { LiveVoiceButton } from "./LiveVoice";
 import {
   applyMove,
   applyRoll,
@@ -92,7 +97,6 @@ import { SEATS } from "@/lib/ludo/board";
 import { cn } from "@/lib/utils";
 
 const TURN_SECONDS = 15;
-
 
 type Screen =
   | "home"
@@ -160,7 +164,6 @@ function LudoShell() {
   const sendRoll = useServerFn(rollServerDie);
   const openTurn = useServerFn(startServerTurn);
   const endTurn = useServerFn(forfeitServerTurn);
-
 
   useEffect(() => {
     setMuted(loadMuted());
@@ -295,7 +298,11 @@ function LudoShell() {
     setVerified(trusted);
     setGame((g) => {
       const next = applyRoll(g, value);
-      if (next.turn !== g.turn) window.setTimeout(() => { sfx.turnPass(); haptics.turnPass(); }, 180);
+      if (next.turn !== g.turn)
+        window.setTimeout(() => {
+          sfx.turnPass();
+          haptics.turnPass();
+        }, 180);
       return next;
     });
     sfx.diceLand(value);
@@ -304,52 +311,63 @@ function LudoShell() {
     setRolling(false);
   };
 
+  const commitMove = useCallback(
+    (state: GameState, move: ReturnType<typeof legalMoves>[number]) => {
+      moveCount.current += 1;
+      const seat = currentPlayer(state).seat;
+      const kind: MatchEvent["kind"] = move.captures.length
+        ? "capture"
+        : move.finishes
+          ? "home"
+          : move.entersBoard
+            ? "enter"
+            : "move";
 
-  const commitMove = useCallback((state: GameState, move: ReturnType<typeof legalMoves>[number]) => {
-    moveCount.current += 1;
-    const seat = currentPlayer(state).seat;
-    const kind: MatchEvent["kind"] = move.captures.length
-      ? "capture"
-      : move.finishes
-        ? "home"
-        : move.entersBoard
-          ? "enter"
-          : "move";
+      // الصوت والاهتزاز مضبوطان على توقيت انتقال القطعة (300ms)
+      if (kind === "capture") {
+        sfx.move();
+        window.setTimeout(() => {
+          sfx.capture();
+          haptics.capture();
+        }, 300);
+      } else if (kind === "home") {
+        sfx.move();
+        window.setTimeout(() => {
+          sfx.home();
+          haptics.home();
+        }, 300);
+      } else if (kind === "enter") {
+        sfx.enter();
+        haptics.enter();
+      } else {
+        sfx.move();
+        haptics.move();
+      }
 
-    // الصوت والاهتزاز مضبوطان على توقيت انتقال القطعة (300ms)
-    if (kind === "capture") {
-      sfx.move();
-      window.setTimeout(() => { sfx.capture(); haptics.capture(); }, 300);
-    } else if (kind === "home") {
-      sfx.move();
-      window.setTimeout(() => { sfx.home(); haptics.home(); }, 300);
-    } else if (kind === "enter") {
-      sfx.enter();
-      haptics.enter();
-    } else {
-      sfx.move();
-      haptics.move();
-    }
+      setEvents((prev) => [
+        ...prev.slice(-40),
+        {
+          kind,
+          seat,
+          seatLabel: currentPlayer(state).name,
+          from: move.from,
+          to: move.to,
+          die: state.dice ?? 0,
+          at: Date.now(),
+        },
+      ]);
 
-    setEvents((prev) => [
-      ...prev.slice(-40),
-      {
-        kind,
-        seat,
-        seatLabel: currentPlayer(state).name,
-        from: move.from,
-        to: move.to,
-        die: state.dice ?? 0,
-        at: Date.now(),
-      },
-    ]);
-
-    const next = applyMove(state, move);
-    if (next.turn !== state.turn && next.phase !== "over") {
-      window.setTimeout(() => { sfx.turnPass(); haptics.turnPass(); }, 420);
-    }
-    return next;
-  }, []);
+      const next = applyMove(state, move);
+      if (next.turn !== state.turn && next.phase !== "over") {
+        window.setTimeout(() => {
+          sfx.turnPass();
+          haptics.turnPass();
+        }, 420);
+      }
+      return next;
+    },
+    [],
+  );
 
   const handleToken = (id: string) => {
     const move = moves.find((item) => item.tokenId === id);
@@ -375,7 +393,17 @@ function LudoShell() {
       }
     }, 720);
     return () => window.clearTimeout(timer);
-  }, [screen, game.phase, game.turn, game.dice, game.winner, player.isBot, rolling, moves, commitMove]);
+  }, [
+    screen,
+    game.phase,
+    game.turn,
+    game.dice,
+    game.winner,
+    player.isBot,
+    rolling,
+    moves,
+    commitMove,
+  ]);
 
   // حركة وحيدة تُنفّذ تلقائيًا
   useEffect(() => {
@@ -441,7 +469,10 @@ function LudoShell() {
           setVerified(false);
           setGame((g) => forfeitTurn(g));
         };
-        if (!sig) { finish(); return; }
+        if (!sig) {
+          finish();
+          return;
+        }
         void endTurn({ data: { matchId: matchId.current, turn: turnNo, deadline, sig } })
           .then((verdict) => {
             // السيرفر هو من يقرّ انتهاء المهلة فعليًا
@@ -453,7 +484,6 @@ function LudoShell() {
     }, 180);
     return () => window.clearInterval(tick);
   }, [timerActive, deadline, game.turn, endTurn]);
-
 
   // احتفال + حفظ النتيجة (يتم التحقق منها في السيرفر)
   useEffect(() => {
@@ -480,9 +510,20 @@ function LudoShell() {
   if (stage === "gate" && !user && !guest) {
     return (
       <GateScreen
-        onSignIn={() => { setStage("app"); setScreen("account"); }}
-        onSignUp={() => { setStage("app"); setScreen("account"); }}
-        onGuest={() => { markGuest(); setGuest(true); setStage("app"); setScreen("home"); }}
+        onSignIn={() => {
+          setStage("app");
+          setScreen("account");
+        }}
+        onSignUp={() => {
+          setStage("app");
+          setScreen("account");
+        }}
+        onGuest={() => {
+          markGuest();
+          setGuest(true);
+          setStage("app");
+          setScreen("home");
+        }}
       />
     );
   }
@@ -526,13 +567,13 @@ function LudoShell() {
           myTurn: !player.isBot,
           secondsLeft: Math.ceil(remaining),
           lastEvent: events.length
-            ? (events[events.length - 1]!.kind === "capture"
+            ? events[events.length - 1]!.kind === "capture"
               ? "capture"
               : events[events.length - 1]!.kind === "home"
                 ? "home"
                 : events[events.length - 1]!.kind === "enter"
                   ? "six"
-                  : null)
+                  : null
             : null,
         }}
         onMute={() => toggleMute()}
@@ -550,8 +591,20 @@ function LudoShell() {
     <div className="ludo-shell min-h-screen" dir="rtl">
       <Starfield />
       <div className="relative mx-auto min-h-screen w-full max-w-md px-3 pb-24 pt-3 sm:pt-5">
-        <TopBar muted={muted} onMute={() => toggleMute()} onMenu={() => navigate("home")} onAccount={() => navigate("account")} />
-        {screen === "home" && <HomeScreen navigate={navigate} quickPlay={startGame} dominoPlay={startDomino} isAdmin={isAdmin} />}
+        <TopBar
+          muted={muted}
+          onMute={() => toggleMute()}
+          onMenu={() => navigate("home")}
+          onAccount={() => navigate("account")}
+        />
+        {screen === "home" && (
+          <HomeScreen
+            navigate={navigate}
+            quickPlay={startGame}
+            dominoPlay={startDomino}
+            isAdmin={isAdmin}
+          />
+        )}
         {screen === "setup" && (
           <SetupScreen
             players={playerCount}
@@ -643,7 +696,17 @@ function markGuest() {
   if (typeof window !== "undefined") window.localStorage.setItem(GUEST_KEY, "1");
 }
 
-function TopBar({ muted, onMute, onMenu, onAccount }: { muted: boolean; onMute: () => void; onMenu: () => void; onAccount: () => void }) {
+function TopBar({
+  muted,
+  onMute,
+  onMenu,
+  onAccount,
+}: {
+  muted: boolean;
+  onMute: () => void;
+  onMenu: () => void;
+  onAccount: () => void;
+}) {
   const { profile, user } = useAuth();
   const xp = (profile?.xp ?? 0) % 300;
   return (
@@ -652,34 +715,63 @@ function TopBar({ muted, onMute, onMenu, onAccount }: { muted: boolean; onMute: 
         <button type="button" onClick={onAccount} className="relative" aria-label="حسابي">
           <span className="level-orb">
             {user ? (
-              profile?.avatar && profile.avatar.length <= 3
-                ? <span>{profile.avatar}</span>
-                : <img src={avatarTiger} alt="" width={512} height={512} loading="lazy" />
-            ) : <img src={avatarTiger} alt="" width={512} height={512} loading="lazy" />}
+              profile?.avatar && profile.avatar.length <= 3 ? (
+                <span>{profile.avatar}</span>
+              ) : (
+                <img src={avatarTiger} alt="" width={512} height={512} loading="lazy" />
+              )
+            ) : (
+              <img src={avatarTiger} alt="" width={512} height={512} loading="lazy" />
+            )}
           </span>
           <span className="level-chip">{user ? `مستوى ${profile?.level ?? 1}` : "دخول"}</span>
         </button>
         <div className="min-w-0">
           <div className="flex items-center justify-end gap-2">
-            <button type="button" onClick={onAccount} className="hud-pill press-3d reflect-gloss" aria-label="الذهب">
+            <button
+              type="button"
+              onClick={onAccount}
+              className="hud-pill press-3d reflect-gloss"
+              aria-label="الذهب"
+            >
               <img src={coinStack} alt="" width={512} height={512} loading="lazy" />
-              <b>{user ? profile?.gold ?? 0 : 0}</b>
+              <b>{user ? (profile?.gold ?? 0) : 0}</b>
               <span className="hud-plus">+</span>
             </button>
-            <button type="button" onClick={onAccount} className="hud-pill press-3d reflect-gloss" aria-label="الجواهر">
+            <button
+              type="button"
+              onClick={onAccount}
+              className="hud-pill press-3d reflect-gloss"
+              aria-label="الجواهر"
+            >
               <img src={gemEmerald} alt="" width={512} height={512} loading="lazy" />
-              <b>{user ? profile?.diamonds ?? 0 : 0}</b>
+              <b>{user ? (profile?.diamonds ?? 0) : 0}</b>
               <span className="hud-plus">+</span>
             </button>
           </div>
           <div className="mt-2 flex items-center gap-2">
-            <div className="xp-track flex-1"><span className="xp-fill" style={{ width: `${(xp / 300) * 100}%` }} /></div>
+            <div className="xp-track flex-1">
+              <span className="xp-fill" style={{ width: `${(xp / 300) * 100}%` }} />
+            </div>
             <small className="shrink-0 text-[10px] font-bold text-ludo-gold">{xp}/300 XP</small>
           </div>
         </div>
         <div className="grid gap-1">
-          <Button variant="neonIcon" size="icon" className="press-3d" aria-label="القائمة" onClick={onMenu}><Menu /></Button>
-          <Button variant="neonIcon" size="icon" aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"} onClick={onMute}>
+          <Button
+            variant="neonIcon"
+            size="icon"
+            className="press-3d"
+            aria-label="القائمة"
+            onClick={onMenu}
+          >
+            <Menu />
+          </Button>
+          <Button
+            variant="neonIcon"
+            size="icon"
+            aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"}
+            onClick={onMute}
+          >
             {muted ? <VolumeX /> : <Volume2 />}
           </Button>
         </div>
@@ -692,23 +784,65 @@ function TopBar({ muted, onMute, onMenu, onAccount }: { muted: boolean; onMute: 
 function Brand() {
   return (
     <div className="min-w-0 text-center">
-      <img src={brandMark} alt="شعار عبقور لودو" width={512} height={512} className="asset-shine mx-auto -mb-2 size-16" />
-      <h1 className="truncate font-display text-2xl font-black text-ludo-gold text-shadow-glow">ABQOR LUDO</h1>
+      <img
+        src={brandMark}
+        alt="شعار عبقور لودو"
+        width={512}
+        height={512}
+        className="asset-shine mx-auto -mb-2 size-16"
+      />
+      <h1 className="truncate font-display text-2xl font-black text-ludo-gold text-shadow-glow">
+        ABQOR LUDO
+      </h1>
       <p className="-mt-1 text-xs font-bold text-ludo-pink">عبقور لودو</p>
     </div>
   );
 }
 
-function HomeScreen({ navigate, quickPlay, dominoPlay, isAdmin }: { navigate: (s: Screen) => void; quickPlay: () => void; dominoPlay: () => void; isAdmin?: boolean }) {
+function HomeScreen({
+  navigate,
+  quickPlay,
+  dominoPlay,
+  isAdmin,
+}: {
+  navigate: (s: Screen) => void;
+  quickPlay: () => void;
+  dominoPlay: () => void;
+  isAdmin?: boolean;
+}) {
   return (
     <main className="mt-3 space-y-4 pb-24">
       <h2 className="ribbon-title reflect-gloss">اختر نمط اللعب</h2>
 
       <div className="grid grid-cols-2 gap-3">
-        <ModeCard tone="green" img={mode2p} title="لعب سريع" subtitle="ضد الروبوت" onClick={quickPlay} />
-        <ModeCard tone="gold" img={mode4p} title="لعب محلي" subtitle="2 – 4 لاعبين" onClick={() => navigate("setup")} />
-        <ModeCard tone="violet" img={modeDomino} title="دومينو" subtitle="حجارة ثلاثية الأبعاد" onClick={dominoPlay} />
-        <ModeCard tone="pink" img={navTrophy} title="المتصدرون" subtitle="ترتيب اللاعبين" onClick={() => navigate("leaderboard")} />
+        <ModeCard
+          tone="green"
+          img={mode2p}
+          title="لعب سريع"
+          subtitle="ضد الروبوت"
+          onClick={quickPlay}
+        />
+        <ModeCard
+          tone="gold"
+          img={mode4p}
+          title="لعب محلي"
+          subtitle="2 – 4 لاعبين"
+          onClick={() => navigate("setup")}
+        />
+        <ModeCard
+          tone="violet"
+          img={modeDomino}
+          title="دومينو"
+          subtitle="حجارة ثلاثية الأبعاد"
+          onClick={dominoPlay}
+        />
+        <ModeCard
+          tone="pink"
+          img={navTrophy}
+          title="المتصدرون"
+          subtitle="ترتيب اللاعبين"
+          onClick={() => navigate("leaderboard")}
+        />
       </div>
 
       <section className="glossy-card">
@@ -732,8 +866,19 @@ function HomeScreen({ navigate, quickPlay, dominoPlay, isAdmin }: { navigate: (s
         </Button>
       )}
 
-      <button className="glossy-card press-3d reflect-gloss flex w-full items-center gap-3 text-right" type="button" onClick={() => navigate("chests")}>
-        <img src={giftBox} alt="" width={512} height={512} loading="lazy" className="asset-shine relative size-16 shrink-0" />
+      <button
+        className="glossy-card press-3d reflect-gloss flex w-full items-center gap-3 text-right"
+        type="button"
+        onClick={() => navigate("chests")}
+      >
+        <img
+          src={giftBox}
+          alt=""
+          width={512}
+          height={512}
+          loading="lazy"
+          className="asset-shine relative size-16 shrink-0"
+        />
         <span className="relative min-w-0 flex-1">
           <b className="block text-lg text-ludo-gold">هدية اليوم جاهزة!</b>
           <small className="text-ludo-soft">افتح الصندوق واجمع الذهب والجواهر</small>
@@ -744,9 +889,25 @@ function HomeScreen({ navigate, quickPlay, dominoPlay, isAdmin }: { navigate: (s
   );
 }
 
-function ModeCard({ tone, img, title, subtitle, onClick }: { tone: string; img: string; title: string; subtitle: string; onClick: () => void }) {
+function ModeCard({
+  tone,
+  img,
+  title,
+  subtitle,
+  onClick,
+}: {
+  tone: string;
+  img: string;
+  title: string;
+  subtitle: string;
+  onClick: () => void;
+}) {
   return (
-    <button type="button" onClick={onClick} className={cn("mode-tile press-3d reflect-gloss", `tile-${tone}`)}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn("mode-tile press-3d reflect-gloss", `tile-${tone}`)}
+    >
       <img src={img} alt="" width={512} height={512} loading="lazy" />
       <b>{title}</b>
       <small>{subtitle}</small>
@@ -756,48 +917,208 @@ function ModeCard({ tone, img, title, subtitle, onClick }: { tone: string; img: 
 
 function SmallTile({ img, label, onClick }: { img: string; label: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="press-3d reflect-gloss relative grid place-items-center gap-1 rounded-xl border border-ludo-gold/25 bg-black/30 p-2 shadow-[inset_0_1px_0_rgb(255_255_255/.18),0_4px_0_#2c0722,0_8px_16px_rgb(0_0_0/.45)]">
-      <img src={img} alt="" width={512} height={512} loading="lazy" className="asset-shine size-10" />
+    <button
+      type="button"
+      onClick={onClick}
+      className="press-3d reflect-gloss relative grid place-items-center gap-1 rounded-xl border border-ludo-gold/25 bg-black/30 p-2 shadow-[inset_0_1px_0_rgb(255_255_255/.18),0_4px_0_#2c0722,0_8px_16px_rgb(0_0_0/.45)]"
+    >
+      <img
+        src={img}
+        alt=""
+        width={512}
+        height={512}
+        loading="lazy"
+        className="asset-shine size-10"
+      />
       <small className="text-[10px] font-bold text-ludo-soft">{label}</small>
     </button>
   );
 }
 
-function SetupScreen({ players, humans, setPlayers, setHumans, onStart, onBack }: { players: 2 | 3 | 4; humans: number; setPlayers: (v: 2 | 3 | 4) => void; setHumans: (v: number) => void; onStart: () => void; onBack: () => void }) {
+function SetupScreen({
+  players,
+  humans,
+  setPlayers,
+  setHumans,
+  onStart,
+  onBack,
+}: {
+  players: 2 | 3 | 4;
+  humans: number;
+  setPlayers: (v: 2 | 3 | 4) => void;
+  setHumans: (v: number) => void;
+  onStart: () => void;
+  onBack: () => void;
+}) {
   return (
     <PanelPage title="تجهيز الطاولة" icon={<Users />} onBack={onBack}>
-      <p className="mb-3 text-center text-sm text-ludo-soft">اختر عدد المشاركين واللاعبين الحقيقيين</p>
+      <p className="mb-3 text-center text-sm text-ludo-soft">
+        اختر عدد المشاركين واللاعبين الحقيقيين
+      </p>
       <SettingBlock title="عدد اللاعبين">
-        <div className="grid grid-cols-3 gap-2">{([2, 3, 4] as const).map((n) => <Button key={n} variant={players === n ? "royal" : "neon"} onClick={() => { setPlayers(n); setHumans(Math.min(humans, n)); }}>{n} لاعبين</Button>)}</div>
+        <div className="grid grid-cols-3 gap-2">
+          {([2, 3, 4] as const).map((n) => (
+            <Button
+              key={n}
+              variant={players === n ? "royal" : "neon"}
+              onClick={() => {
+                setPlayers(n);
+                setHumans(Math.min(humans, n));
+              }}
+            >
+              {n} لاعبين
+            </Button>
+          ))}
+        </div>
       </SettingBlock>
       <SettingBlock title="اللاعبون المحليون">
-        <div className="grid grid-cols-4 gap-2">{[1, 2, 3, 4].filter((n) => n <= players).map((n) => <Button key={n} variant={humans === n ? "royal" : "neon"} onClick={() => setHumans(n)}>{n}</Button>)}</div>
+        <div className="grid grid-cols-4 gap-2">
+          {[1, 2, 3, 4]
+            .filter((n) => n <= players)
+            .map((n) => (
+              <Button
+                key={n}
+                variant={humans === n ? "royal" : "neon"}
+                onClick={() => setHumans(n)}
+              >
+                {n}
+              </Button>
+            ))}
+        </div>
         <p className="mt-3 text-xs text-ludo-soft">سيكمل الروبوت المقاعد المتبقية تلقائيًا</p>
       </SettingBlock>
-      <Button variant="play" size="xl" className="mt-5 w-full" onClick={onStart}>ابدأ اللعبة <Crown /></Button>
+      <Button variant="play" size="xl" className="mt-5 w-full" onClick={onStart}>
+        ابدأ اللعبة <Crown />
+      </Button>
     </PanelPage>
   );
 }
 
 function RoomsScreen({ onBack, onPlay }: { onBack: () => void; onPlay: () => void }) {
   const rooms = ["غرفة المرح", "أصدقاء عبقور", "تحدّي الأبطال", "شوق اللعبة"];
-  return <PanelPage title="الغرف المتاحة" icon={<Users />} onBack={onBack}><div className="space-y-2">{rooms.map((name, i) => <div className="list-card" key={name}><span className="avatar-orb bg-ludo-purple text-ludo-gold">{i + 1}</span><span className="min-w-0 flex-1"><b className="block truncate">{name}</b><small className="text-ludo-soft">{i % 2 ? "2 / 4" : "3 / 4"} لاعبين</small></span><Button variant="play" size="sm" onClick={onPlay}>انضم</Button></div>)}</div><Button variant="royal" className="mt-4 w-full"><Plus /> إنشاء غرفة</Button></PanelPage>;
+  return (
+    <PanelPage title="الغرف المتاحة" icon={<Users />} onBack={onBack}>
+      <div className="space-y-2">
+        {rooms.map((name, i) => (
+          <div className="list-card" key={name}>
+            <span className="avatar-orb bg-ludo-purple text-ludo-gold">{i + 1}</span>
+            <span className="min-w-0 flex-1">
+              <b className="block truncate">{name}</b>
+              <small className="text-ludo-soft">{i % 2 ? "2 / 4" : "3 / 4"} لاعبين</small>
+            </span>
+            <Button variant="play" size="sm" onClick={onPlay}>
+              انضم
+            </Button>
+          </div>
+        ))}
+      </div>
+      <Button variant="royal" className="mt-4 w-full">
+        <Plus /> إنشاء غرفة
+      </Button>
+    </PanelPage>
+  );
 }
 
 function RewardsScreen({ onBack }: { onBack: () => void }) {
-  const items = [["🪙", "1000 عملة"], ["🎁", "صندوق ملكي"], ["👑", "تاج الملك"], ["💎", "100 جوهرة"]];
-  return <PanelPage title="المكافآت" icon={<Gift />} onBack={onBack}><div className="reward-hero"><Gift className="size-20 text-ludo-gold" /><b>هدية يومية مميزة</b><span>عد غدًا لمفاجأة جديدة</span></div><div className="mt-3 grid grid-cols-2 gap-3">{items.map(([icon, name], i) => <div className="reward-card" key={name}><span className="text-5xl">{icon}</span><b>{name}</b><Button variant={i === 0 ? "play" : "neon"} size="sm">{i === 0 ? "استلم" : "قريبًا"}</Button></div>)}</div></PanelPage>;
+  const items = [
+    ["🪙", "1000 عملة"],
+    ["🎁", "صندوق ملكي"],
+    ["👑", "تاج الملك"],
+    ["💎", "100 جوهرة"],
+  ];
+  return (
+    <PanelPage title="المكافآت" icon={<Gift />} onBack={onBack}>
+      <div className="reward-hero">
+        <Gift className="size-20 text-ludo-gold" />
+        <b>هدية يومية مميزة</b>
+        <span>عد غدًا لمفاجأة جديدة</span>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        {items.map(([icon, name], i) => (
+          <div className="reward-card" key={name}>
+            <span className="text-5xl">{icon}</span>
+            <b>{name}</b>
+            <Button variant={i === 0 ? "play" : "neon"} size="sm">
+              {i === 0 ? "استلم" : "قريبًا"}
+            </Button>
+          </div>
+        ))}
+      </div>
+    </PanelPage>
+  );
 }
 
 function TournamentsScreen({ onBack }: { onBack: () => void }) {
-  return <PanelPage title="البطولات" icon={<Trophy />} onBack={onBack}><div className="trophy-stage"><Trophy className="size-24 text-ludo-gold" fill="currentColor" /><h3>بطولة عبقور الكبرى</h3><p>الجائزة الكبرى 20,000 عملة</p><div className="countdown"><span><b>05</b> أيام</span><span><b>12</b> ساعة</span><span><b>36</b> دقيقة</span></div></div>{["بطولة السرعة", "تحدّي الأصدقاء", "بطولة المحترفين"].map((x, i) => <div className="list-card mt-2" key={x}><Medal className="size-8 text-ludo-gold" /><span className="flex-1"><b className="block">{x}</b><small className="text-ludo-soft">{i + 2} أيام متبقية</small></span><Button variant="neon" size="sm">التفاصيل</Button></div>)}</PanelPage>;
+  return (
+    <PanelPage title="البطولات" icon={<Trophy />} onBack={onBack}>
+      <div className="trophy-stage">
+        <Trophy className="size-24 text-ludo-gold" fill="currentColor" />
+        <h3>بطولة عبقور الكبرى</h3>
+        <p>الجائزة الكبرى 20,000 عملة</p>
+        <div className="countdown">
+          <span>
+            <b>05</b> أيام
+          </span>
+          <span>
+            <b>12</b> ساعة
+          </span>
+          <span>
+            <b>36</b> دقيقة
+          </span>
+        </div>
+      </div>
+      {["بطولة السرعة", "تحدّي الأصدقاء", "بطولة المحترفين"].map((x, i) => (
+        <div className="list-card mt-2" key={x}>
+          <Medal className="size-8 text-ludo-gold" />
+          <span className="flex-1">
+            <b className="block">{x}</b>
+            <small className="text-ludo-soft">{i + 2} أيام متبقية</small>
+          </span>
+          <Button variant="neon" size="sm">
+            التفاصيل
+          </Button>
+        </div>
+      ))}
+    </PanelPage>
+  );
 }
 
-function PanelPage({ title, icon, onBack, children }: { title: string; icon: React.ReactNode; onBack: () => void; children: React.ReactNode }) {
-  return <main className="royal-panel glow-rise mt-4 p-3"><header className="title-ribbon mb-4 grid grid-cols-[auto_1fr_auto] items-center"><Button variant="ghostGold" size="icon" onClick={onBack}><ChevronLeft className="rotate-180" /></Button><h2 className="flex items-center justify-center gap-2 text-xl">{icon}{title}</h2><span className="size-9" /></header>{children}</main>;
+function PanelPage({
+  title,
+  icon,
+  onBack,
+  children,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  onBack: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <main className="royal-panel glow-rise mt-4 p-3">
+      <header className="title-ribbon mb-4 grid grid-cols-[auto_1fr_auto] items-center">
+        <Button variant="ghostGold" size="icon" onClick={onBack}>
+          <ChevronLeft className="rotate-180" />
+        </Button>
+        <h2 className="flex items-center justify-center gap-2 text-xl">
+          {icon}
+          {title}
+        </h2>
+        <span className="size-9" />
+      </header>
+      {children}
+    </main>
+  );
 }
 
-function SettingBlock({ title, children }: { title: string; children: React.ReactNode }) { return <section className="mb-3 rounded-xl border border-ludo-gold/35 bg-ludo-panel/70 p-3"><h3 className="mb-3 font-bold text-ludo-gold">{title}</h3>{children}</section>; }
+function SettingBlock({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="mb-3 rounded-xl border border-ludo-gold/35 bg-ludo-panel/70 p-3">
+      <h3 className="mb-3 font-bold text-ludo-gold">{title}</h3>
+      {children}
+    </section>
+  );
+}
 
 function BottomNav({ active, navigate }: { active: Screen; navigate: (s: Screen) => void }) {
   const links: [Screen, string, string][] = [
@@ -810,7 +1131,12 @@ function BottomNav({ active, navigate }: { active: Screen; navigate: (s: Screen)
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid w-full max-w-md grid-cols-5 gap-1 border-t-2 border-ludo-gold/70 bg-[linear-gradient(180deg,#4a0d33,#170512)] px-2 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_24px_rgb(0_0_0/.55)]">
       {links.map(([id, icon, label]) => (
-        <button type="button" key={id} onClick={() => navigate(id)} className={cn("nav-3d press-3d", active === id && "nav-3d-active")}>
+        <button
+          type="button"
+          key={id}
+          onClick={() => navigate(id)}
+          className={cn("nav-3d press-3d", active === id && "nav-3d-active")}
+        >
           <img src={icon} alt="" width={512} height={512} loading="lazy" />
           <span>{label}</span>
         </button>
@@ -819,50 +1145,329 @@ function BottomNav({ active, navigate }: { active: Screen; navigate: (s: Screen)
   );
 }
 
-function GameScreen({ state, moves, rolling, muted, celebrate, events, verified, remaining, timerActive, serverSynced, meName, chatContext, onMute, onRoll, onToken, onHome, onRules, onRestart }: { state: GameState; moves: ReturnType<typeof legalMoves>; rolling: boolean; muted: boolean; celebrate: boolean; events: MatchEvent[]; verified: boolean; remaining: number; timerActive: boolean; serverSynced: boolean; meName: string; chatContext?: ChatContext | undefined; onMute: () => void; onRoll: () => void; onToken: (id: string) => void; onHome: () => void; onRules: () => void; onRestart: () => void }) {
+function GameScreen({
+  state,
+  moves,
+  rolling,
+  muted,
+  celebrate,
+  events,
+  verified,
+  remaining,
+  timerActive,
+  serverSynced,
+  meName,
+  chatContext,
+  onMute,
+  onRoll,
+  onToken,
+  onHome,
+  onRules,
+  onRestart,
+}: {
+  state: GameState;
+  moves: ReturnType<typeof legalMoves>;
+  rolling: boolean;
+  muted: boolean;
+  celebrate: boolean;
+  events: MatchEvent[];
+  verified: boolean;
+  remaining: number;
+  timerActive: boolean;
+  serverSynced: boolean;
+  meName: string;
+  chatContext?: ChatContext | undefined;
+  onMute: () => void;
+  onRoll: () => void;
+  onToken: (id: string) => void;
+  onHome: () => void;
+  onRules: () => void;
+  onRestart: () => void;
+}) {
+  const { profile } = useAuth();
   const player = currentPlayer(state);
   const seat = SEATS[player.seat];
-  return <div className="ludo-shell min-h-screen" dir="rtl"><Starfield /><div className="crown-pattern fixed inset-0" aria-hidden="true" /><main className="relative mx-auto flex min-h-screen w-full max-w-xl flex-col px-2 pb-4 pt-2">
-    <header className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2"><Button variant="neonIcon" size="icon" className="press-3d" aria-label="الرئيسية" onClick={onHome}><Home /></Button><Button variant="neonIcon" size="icon" className="press-3d" aria-label="القواعد" onClick={onRules}><BookOpen /></Button><Brand /><Button variant="neonIcon" size="icon" className="press-3d" aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"} onClick={onMute}>{muted ? <VolumeX /> : <Volume2 />}</Button></header>
-    <div className="mt-2 grid grid-cols-2 gap-2">{state.players.slice(0, 2).map((p) => <PlayerPlate key={p.seat} state={state} seatId={p.seat} />)}</div>
-    <section className="board-wood reflect-gloss relative mx-auto my-2 w-full max-w-[min(92vw,34rem)]"><LudoBoard state={state} moves={moves} onTokenClick={onToken} /></section>
-    <div className="grid grid-cols-2 gap-2">{state.players.slice(2).map((p) => <PlayerPlate key={p.seat} state={state} seatId={p.seat} />)}</div>
-    {timerActive && state.phase !== "over" && (
-      <div className="mt-2 flex justify-center"><TurnTimer remaining={remaining} limit={15} name={player.name} serverSynced={serverSynced} /></div>
-    )}
-    <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 pt-4"><div className="min-w-0 text-center"><p className="truncate text-sm font-bold text-ludo-gold">{state.message}</p><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ludo-panel"><span className={cn("block h-full w-1/2", colorBg[seat.token])} /></div></div><Dice value={state.dice} rolling={rolling} disabled={state.phase !== "roll" || player.isBot} onRoll={onRoll} seatToken={seat.token} verified={verified} /></div>
-    {state.phase === "over" && (
-      <MatchSummary winnerName={player.name} events={events} onRestart={onRestart} onHome={onHome} />
-    )}
-  </main><MatchChat meName={meName} context={chatContext} />{celebrate && <Confetti />}</div>;
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatTab, setChatTab] = useState<"quick" | "emoji" | "text">("quick");
+
+  // ترتيب المقاعد كما في التصميم: أنا بالأسفل يمين اللوحة، والخصوم بالأعلى/الأسفل المقابل
+  const mySeat = state.players.find((p) => !p.isBot)?.seat ?? 0;
+  const others = state.players.filter((p) => p.seat !== mySeat);
+  const me = state.players.find((p) => p.seat === mySeat)!;
+  const topLeft = others[1] ?? null;
+  const topRight = others[0] ?? null;
+  const bottomRight = others[2] ?? null;
+
+  const myTurn = player.seat === mySeat && !player.isBot;
+  const pct = timerActive ? Math.max(0, Math.min(1, remaining / 15)) : 1;
+
+  return (
+    <div className="ludo-shell min-h-screen" dir="rtl">
+      <Starfield />
+      <div className="crown-pattern fixed inset-0" aria-hidden="true" />
+      <main className="relative mx-auto flex min-h-screen w-full max-w-xl flex-col px-3 pb-3 pt-2">
+        {/* شريط علوي: قائمة، الفوز، مشاهدون، ثم الجواهر */}
+        <div className="room-top-bar">
+          <button
+            type="button"
+            className="room-pill press-3d"
+            aria-label="الرئيسية"
+            onClick={onHome}
+          >
+            <Menu className="size-5" />
+          </button>
+          <button
+            type="button"
+            className="room-pill press-3d"
+            aria-label="القواعد والفوز"
+            onClick={onRules}
+          >
+            <Trophy className="size-5" />
+          </button>
+          <button
+            type="button"
+            className="room-pill press-3d"
+            aria-label="المشاهدون"
+            onClick={() => {
+              setChatTab("quick");
+              setChatOpen(true);
+            }}
+          >
+            <Eye className="size-5" />
+            <b>{events.length}</b>
+          </button>
+          <LiveVoiceButton roomId={`ludo-${state.players.length}`} meName={meName} />
+          <button
+            type="button"
+            className="room-pill press-3d"
+            aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"}
+            onClick={onMute}
+          >
+            {muted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
+          </button>
+          <span className="room-gems">
+            <img src={gemEmerald} alt="" width={512} height={512} loading="lazy" />
+            <b>{profile?.diamonds ?? 0}</b>
+          </span>
+        </div>
+
+        {/* مقاعد الخصوم أعلى اللوحة */}
+        <div className="mt-2 grid min-h-[5.6rem] grid-cols-2 items-end gap-2">
+          <div className="justify-self-start">
+            {topLeft && <RoomSeat state={state} seatId={topLeft.seat} align="start" />}
+          </div>
+          <div className="justify-self-end">
+            {topRight && <RoomSeat state={state} seatId={topRight.seat} align="end" />}
+          </div>
+        </div>
+
+        <section className="board-wood reflect-gloss relative mx-auto my-1 w-full max-w-[min(94vw,34rem)]">
+          <LudoBoard state={state} moves={moves} onTokenClick={onToken} />
+        </section>
+
+        {/* أنا بالأسفل مع حلقة المؤقت والنرد، والخصم المقابل يمينًا */}
+        <div className="mt-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+          <div className="room-seat">
+            <span className="room-name">{me.name}</span>
+            <div className="flex items-center gap-2">
+              <span
+                className="room-ring"
+                style={{
+                  ["--seat" as string]: `var(--ludo-${SEATS[mySeat].token})`,
+                  ["--pct" as string]: pct,
+                }}
+              >
+                <span>
+                  {me.isBot ? (
+                    <Bot className="size-6 text-ludo-gold" />
+                  ) : (
+                    <img
+                      src={avatarTiger}
+                      alt=""
+                      width={512}
+                      height={512}
+                      loading="lazy"
+                      className="size-full object-cover"
+                    />
+                  )}
+                </span>
+              </span>
+              <span className="room-dice-bubble">
+                <Dice
+                  value={state.dice}
+                  rolling={rolling}
+                  disabled={state.phase !== "roll" || player.isBot}
+                  onRoll={onRoll}
+                  seatToken={seat.token}
+                  verified={verified}
+                />
+              </span>
+              <button
+                type="button"
+                className="room-pill press-3d"
+                aria-label="جولة جديدة"
+                onClick={onRestart}
+              >
+                <RotateCcw className="size-5" />
+              </button>
+            </div>
+          </div>
+          <div aria-hidden="true" />
+
+          <div className="justify-self-end">
+            {bottomRight && <RoomSeat state={state} seatId={bottomRight.seat} align="end" />}
+          </div>
+        </div>
+
+        {/* شريط حالة الدور والمؤقت بعرض كامل حتى لا يتراكم مع المقاعد */}
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+          {myTurn && <span className="room-arrow" aria-hidden="true" />}
+          <p className="text-xs font-bold text-ludo-gold">{state.message}</p>
+          {timerActive && state.phase !== "over" && (
+            <TurnTimer
+              remaining={remaining}
+              limit={15}
+              name={player.name}
+              serverSynced={serverSynced}
+            />
+          )}
+        </div>
+
+
+        {/* أزرار الدردشة والإيموجي كما في التصميم */}
+        <div className="mt-3 flex items-center gap-2">
+          <Button
+            variant="neon"
+            size="sm"
+            className="press-3d"
+            onClick={() => {
+              setChatTab("emoji");
+              setChatOpen(true);
+              sfx.tap();
+            }}
+          >
+            <Smile /> إيموجي
+          </Button>
+          <Button
+            variant="neon"
+            size="sm"
+            className="press-3d"
+            onClick={() => {
+              setChatTab("text");
+              setChatOpen(true);
+              sfx.tap();
+            }}
+          >
+            <MessageSquare /> الدردشة
+          </Button>
+          <span className="ms-auto flex items-center gap-1.5 rounded-full border border-ludo-gold/40 bg-ludo-panel/70 px-2 py-1 text-xs font-bold text-ludo-gold">
+            <img
+              src={coinStack}
+              alt=""
+              width={512}
+              height={512}
+              loading="lazy"
+              className="size-5"
+            />
+            {profile?.gold ?? 0}
+          </span>
+        </div>
+
+        {state.phase === "over" && (
+          <MatchSummary
+            winnerName={player.name}
+            events={events}
+            onRestart={onRestart}
+            onHome={onHome}
+          />
+        )}
+      </main>
+      <MatchChat
+        meName={meName}
+        context={chatContext}
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+        tab={chatTab}
+        hideFab
+      />
+      {celebrate && <Confetti />}
+    </div>
+  );
 }
 
-
-function PlayerPlate({ state, seatId }: { state: GameState; seatId: 0 | 1 | 2 | 3 }) {
+/** مقعد لاعب داخل الغرفة: صورة دائرية بإطار لونه لون المقعد + شريط الاسم */
+function RoomSeat({
+  state,
+  seatId,
+  align,
+}: {
+  state: GameState;
+  seatId: 0 | 1 | 2 | 3;
+  align: "start" | "end";
+}) {
   const p = state.players.find((x) => x.seat === seatId);
   if (!p) return null;
   const s = SEATS[seatId];
   const active = currentPlayer(state).seat === seatId;
-  return <div className={cn("player-plate", active && "player-plate-active")} style={{ ["--seat" as string]: `var(--ludo-${s.token})` }}><span className={cn("avatar-orb", colorBg[s.token])}>{p.isBot ? <Bot /> : <Crown />}</span><span className="min-w-0 flex-1"><b className="block truncate text-xs">{p.name}</b><small>{tokensDone(state, seatId)}/4 في المنزل</small></span>{active && <span className="turn-dot" />}</div>;
+  return (
+    <div
+      className={cn("room-seat", align === "end" ? "items-end" : "items-start")}
+      style={{ ["--seat" as string]: `var(--ludo-${s.token})` }}
+    >
+      <span className={cn("room-avatar", active && "room-avatar-active")}>
+        {p.isBot ? (
+          <Bot className="size-7 text-ludo-gold" />
+        ) : (
+          <Crown className="size-7 text-ludo-gold" />
+        )}
+        <b className="absolute -top-1 -start-1 grid size-6 place-items-center rounded-full bg-ludo-panel/90 text-[10px] text-ludo-gold">
+          {tokensDone(state, seatId)}
+        </b>
+      </span>
+      <span className="room-name">{p.name}</span>
+    </div>
+  );
 }
 
 function Confetti() {
   const pieces = useMemo(
-    () => Array.from({ length: 46 }, () => ({
-      left: Math.random() * 100,
-      delay: Math.random() * 0.9,
-      duration: 2 + Math.random() * 1.6,
-      color: ["var(--ludo-gold)", "var(--ludo-pink)", "var(--ludo-palm)", "var(--ludo-lagoon)", "var(--ludo-ruby)"][Math.floor(Math.random() * 5)],
-    })),
+    () =>
+      Array.from({ length: 46 }, () => ({
+        left: Math.random() * 100,
+        delay: Math.random() * 0.9,
+        duration: 2 + Math.random() * 1.6,
+        color: [
+          "var(--ludo-gold)",
+          "var(--ludo-pink)",
+          "var(--ludo-palm)",
+          "var(--ludo-lagoon)",
+          "var(--ludo-ruby)",
+        ][Math.floor(Math.random() * 5)],
+      })),
     [],
   );
   return (
     <div className="confetti" aria-hidden="true">
       {pieces.map((p, i) => (
-        <i key={i} style={{ left: `${p.left}%`, background: p.color, animationDelay: `${p.delay}s`, animationDuration: `${p.duration}s` }} />
+        <i
+          key={i}
+          style={{
+            left: `${p.left}%`,
+            background: p.color,
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.duration}s`,
+          }}
+        />
       ))}
     </div>
   );
 }
 
-function Starfield() { return <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true"><div className="stars stars-a" /><div className="stars stars-b" /></div>; }
+function Starfield() {
+  return (
+    <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
+      <div className="stars stars-a" />
+      <div className="stars stars-b" />
+    </div>
+  );
+}
