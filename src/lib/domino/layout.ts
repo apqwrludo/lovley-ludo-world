@@ -1,21 +1,22 @@
 /**
- * تشكيل سلسلة الدومينو بشكل «ثعبان» مطابق للتصميم المرجعي:
+ * تشكيل سلسلة الدومينو عموديًا مطابقًا لتصميم المستخدم المرجعي:
+ * - السلسلة تنمو عموديًا في وسط الساحة
+ * - الحجر العادي عمودي (طوله رأسي)، والحجر المزدوج أفقي (يُدوَّر ٩٠°)
  * - أبعاد وفواصل ثابتة لكل حجر
- * - الحجر المزدوج عمودي دائمًا، وغير المزدوج أفقي دائمًا
  * - أول حجر يبقى في مركز الساحة (الإحداثيات نسبية للمركز 0,0)
- * - عند زيادة الحجارة تُطوى السلسلة في صفوف متبادلة الاتجاه وتتوسع الساحة
+ * - عند زيادة الحجارة تُطوى السلسلة في أعمدة متبادلة الاتجاه وتتوسع الساحة
  */
 
 /** الطول الثابت للحجر (المحور الطويل) بالبكسل */
-export const TILE_LONG = 56;
+export const TILE_LONG = 58;
 /** العرض الثابت للحجر (المحور القصير) بالبكسل */
-export const TILE_SHORT = 28;
-/** الفاصل الثابت بين الحجارة */
-export const TILE_GAP = 4;
-/** الفاصل الرأسي بين صفوف السلسلة */
-export const ROW_GAP = 10;
-/** ارتفاع الصف = أطول حجر ممكن (مزدوج عمودي) */
-export const ROW_HEIGHT = TILE_LONG + ROW_GAP;
+export const TILE_SHORT = 30;
+/** الفاصل الثابت بين الحجارة على امتداد السلسلة */
+export const TILE_GAP = 3;
+/** الفاصل الأفقي بين أعمدة السلسلة */
+export const COL_GAP = 12;
+/** عرض العمود = أعرض حجر ممكن (مزدوج أفقي) */
+export const COL_WIDTH = TILE_LONG + COL_GAP;
 
 export type ChainTile = { id: string; left: number; right: number };
 
@@ -23,14 +24,14 @@ export type LayoutItem = {
   id: string;
   left: number;
   right: number;
-  /** مزدوج ⇒ عمودي */
+  /** مزدوج ⇒ أفقي (مدوَّر ٩٠°) */
   double: boolean;
   /** إحداثي مركز الحجر بالنسبة لمركز الحجر الأول */
   x: number;
   y: number;
-  /** درجة الدوران الثابتة (0 أفقي، 90 عمودي) */
+  /** درجة الدوران الثابتة (0 عمودي، 90 أفقي) */
   rotation: 0 | 90;
-  row: number;
+  column: number;
 };
 
 export type ChainLayout = {
@@ -38,64 +39,61 @@ export type ChainLayout = {
   /** أبعاد صندوق السلسلة الكلي (تُستخدم لتوسيع الساحة) */
   width: number;
   height: number;
-  rows: number;
+  columns: number;
 };
 
-function tileWidth(double: boolean): number {
+function tileHeight(double: boolean): number {
   return double ? TILE_SHORT : TILE_LONG;
+}
+function tileW(double: boolean): number {
+  return double ? TILE_LONG : TILE_SHORT;
 }
 
 /**
  * @param tiles سلسلة الحجارة بترتيب اللوحة
- * @param maxWidth أقصى عرض متاح للساحة بالبكسل
+ * @param maxHeight أقصى ارتفاع متاح للساحة بالبكسل
  */
-export function layoutChain(tiles: ChainTile[], maxWidth: number): ChainLayout {
-  const usable = Math.max(TILE_LONG + TILE_GAP * 2, maxWidth);
+export function layoutChain(tiles: ChainTile[], maxHeight: number): ChainLayout {
+  const usable = Math.max(TILE_LONG + TILE_GAP * 2, maxHeight);
   const items: LayoutItem[] = [];
-  let row = 0;
-  let cursor = 0; // مسافة من بداية الصف حتى الحافة اليسرى للحجر التالي
-  const rowStarts: number[] = [];
+  let column = 0;
+  let cursor = 0;
 
   for (const tile of tiles) {
     const double = tile.left === tile.right;
-    const w = tileWidth(double);
-    if (cursor > 0 && cursor + w > usable) {
-      row += 1;
+    const h = tileHeight(double);
+    if (cursor > 0 && cursor + h > usable) {
+      column += 1;
       cursor = 0;
     }
-    if (rowStarts[row] === undefined) rowStarts[row] = items.length;
     items.push({
       id: tile.id,
       left: tile.left,
       right: tile.right,
       double,
       rotation: double ? 90 : 0,
-      x: cursor + w / 2,
-      y: row * ROW_HEIGHT,
-      row,
+      x: column * COL_WIDTH,
+      y: cursor + h / 2,
+      column,
     });
-    cursor += w + TILE_GAP;
+    cursor += h + TILE_GAP;
   }
 
-  // اتجاه الصفوف بالتبادل (ثعبان): الصفوف الفردية تُعكس أفقيًا
-  const rows = row + 1;
-  for (let r = 0; r < rows; r += 1) {
-    const inRow = items.filter((it) => it.row === r);
-    if (!inRow.length) continue;
-    const rowMax = Math.max(...inRow.map((it) => it.x + tileWidth(it.double) / 2));
-    if (r % 2 === 1) {
-      for (const it of inRow) it.x = rowMax - it.x;
+  const columns = column + 1;
+
+  // أعمدة متبادلة الاتجاه (ثعبان رأسي)
+  for (let c = 0; c < columns; c += 1) {
+    const inCol = items.filter((it) => it.column === c);
+    if (!inCol.length) continue;
+    if (c % 2 === 1) {
+      const colMax = Math.max(...inCol.map((it) => it.y + tileHeight(it.double) / 2));
+      for (const it of inCol) it.y = colMax - it.y;
     }
-  }
-
-  // مركزة كل صف حول محور الساحة، ثم إزاحة الكل بحيث يكون الحجر الأول في المركز
-  for (let r = 0; r < rows; r += 1) {
-    const inRow = items.filter((it) => it.row === r);
-    if (!inRow.length) continue;
-    const min = Math.min(...inRow.map((it) => it.x - tileWidth(it.double) / 2));
-    const max = Math.max(...inRow.map((it) => it.x + tileWidth(it.double) / 2));
+    // مركزة كل عمود رأسيًا حول محور الساحة
+    const min = Math.min(...inCol.map((it) => it.y - tileHeight(it.double) / 2));
+    const max = Math.max(...inCol.map((it) => it.y + tileHeight(it.double) / 2));
     const center = (min + max) / 2;
-    for (const it of inRow) it.x -= center;
+    for (const it of inCol) it.y -= center;
   }
 
   const first = items[0];
@@ -109,13 +107,13 @@ export function layoutChain(tiles: ChainTile[], maxWidth: number): ChainLayout {
   }
 
   const width = items.length
-    ? Math.max(...items.map((it) => Math.abs(it.x) + tileWidth(it.double) / 2)) * 2
+    ? Math.max(...items.map((it) => Math.abs(it.x) + tileW(it.double) / 2)) * 2
     : 0;
   const height = items.length
-    ? Math.max(...items.map((it) => Math.abs(it.y) + TILE_LONG / 2)) * 2
+    ? Math.max(...items.map((it) => Math.abs(it.y) + tileHeight(it.double) / 2)) * 2
     : 0;
 
-  return { items, width, height, rows };
+  return { items, width, height, columns };
 }
 
 /** معامل التصغير المطلوب كي تبقى السلسلة كاملة داخل الساحة */
