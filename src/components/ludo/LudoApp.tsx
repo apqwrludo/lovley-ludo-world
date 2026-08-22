@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   Crown,
   Gift,
+  History,
   Home,
   ListOrdered,
   Medal,
@@ -24,9 +25,20 @@ import { LudoBoard } from "./LudoBoard";
 import { RulesContent } from "./RulesScreen";
 import { Leaderboard } from "./LeaderboardScreen";
 import { AuthPanel } from "./AuthScreen";
+import { SettingsPanel } from "./SettingsScreen";
+import { MatchHistory } from "./HistoryScreen";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
-import { initAudio, loadMuted, setMuted as persistMuted, sfx } from "@/lib/audio";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  initAudio,
+  loadMuted,
+  loadVolume,
+  setMuted as persistMuted,
+  setVolume as persistVolume,
+  sfx,
+} from "@/lib/audio";
+import { applyAnimations, loadAnimations, setAnimations as persistAnimations } from "@/lib/prefs";
+import { useServerFn } from "@tanstack/react-start";
+import { submitMatchResult } from "@/lib/match.functions";
 import {
   applyMove,
   applyRoll,
@@ -50,6 +62,8 @@ type Screen =
   | "rules"
   | "leaderboard"
   | "account"
+  | "history"
+  | "settings"
   | "game";
 
 const colorBg: Record<string, string> = {
@@ -75,14 +89,45 @@ function LudoShell() {
   const [game, setGame] = useState<GameState>(() => createGame(4, 1));
   const [rolling, setRolling] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [volume, setVolume] = useState(0.6);
+  const [animations, setAnimations] = useState(true);
   const [celebrate, setCelebrate] = useState(false);
   const savedFor = useRef<string | null>(null);
+  const matchId = useRef<string>("");
+  const matchStart = useRef<number>(0);
+  const moveCount = useRef(0);
+  const sendResult = useServerFn(submitMatchResult);
 
-  useEffect(() => setMuted(loadMuted()), []);
+  useEffect(() => {
+    setMuted(loadMuted());
+    setVolume(loadVolume());
+    const anim = loadAnimations();
+    setAnimations(anim);
+    applyAnimations(anim);
+  }, []);
 
-  const toggleMute = () => {
+  const changeVolume = (next: number) => {
+    setVolume(next);
+    persistVolume(next);
+  };
+
+  const changeAnimations = (next: boolean) => {
+    setAnimations(next);
+    persistAnimations(next);
+  };
+
+  const showCelebration = useCallback(
+    (ms: number) => {
+      if (!animations) return;
+      setCelebrate(true);
+      window.setTimeout(() => setCelebrate(false), ms);
+    },
+    [animations],
+  );
+
+  const toggleMute = (value?: boolean) => {
     setMuted((prev) => {
-      const next = !prev;
+      const next = value ?? !prev;
       persistMuted(next);
       if (!next) sfx.tap();
       return next;
@@ -105,10 +150,12 @@ function LudoShell() {
     initAudio();
     setGame(createGame(playerCount, Math.min(humanCount, playerCount)));
     savedFor.current = null;
-    setCelebrate(true);
+    matchId.current = crypto.randomUUID();
+    matchStart.current = Date.now();
+    moveCount.current = 0;
     sfx.start();
     setScreen("game");
-    window.setTimeout(() => setCelebrate(false), 1600);
+    showCelebration(1600);
   };
 
   const handleRoll = () => {
@@ -125,6 +172,7 @@ function LudoShell() {
   };
 
   const commitMove = useCallback((state: GameState, move: ReturnType<typeof legalMoves>[number]) => {
+    moveCount.current += 1;
     if (move.captures.length) sfx.capture();
     else if (move.finishes) sfx.home();
     else sfx.move();
@@ -165,26 +213,31 @@ function LudoShell() {
     return () => window.clearTimeout(timer);
   }, [game.phase, game.turn, game.dice, player.isBot, moves, commitMove]);
 
-  // احتفال + حفظ النتيجة
+  // احتفال + حفظ النتيجة (يتم التحقق منها في السيرفر)
   useEffect(() => {
     if (game.phase !== "over" || game.winner === null) return;
     sfx.win();
-    setCelebrate(true);
-    const timer = window.setTimeout(() => setCelebrate(false), 4200);
+    showCelebration(4200);
 
-    const key = `${game.winner}-${game.players.length}-${game.tokens.length}`;
+    const key = `${matchId.current}-${game.winner}`;
     const mySeat = game.players.find((p) => !p.isBot)?.seat;
-    if (user && mySeat !== undefined && savedFor.current !== key) {
+    if (user && mySeat !== undefined && matchId.current && savedFor.current !== key) {
       savedFor.current = key;
-      void supabase
-        .rpc("record_game_result", {
-          _result: game.winner === mySeat ? "win" : "loss",
-          _players: game.players.length,
-        })
-        .then(() => refreshProfile());
+      void sendResult({
+        data: {
+          matchId: matchId.current,
+          result: game.winner === mySeat ? "win" : "loss",
+          players: game.players.length,
+          moves: moveCount.current,
+          durationMs: Math.max(0, Date.now() - matchStart.current),
+        },
+      })
+        .then(() => refreshProfile())
+        .catch(() => {
+          savedFor.current = null;
+        });
     }
-    return () => window.clearTimeout(timer);
-  }, [game.phase, game.winner, game.players, game.tokens.length, user, refreshProfile]);
+  }, [game.phase, game.winner, game.players, user, refreshProfile, sendResult, showCelebration]);
 
   if (screen === "game") {
     return (
@@ -194,7 +247,7 @@ function LudoShell() {
         rolling={rolling}
         muted={muted}
         celebrate={celebrate}
-        onMute={toggleMute}
+        onMute={() => toggleMute()}
         onRoll={handleRoll}
         onToken={handleToken}
         onHome={() => navigate("home")}
@@ -208,7 +261,7 @@ function LudoShell() {
     <div className="ludo-shell min-h-screen" dir="rtl">
       <Starfield />
       <div className="relative mx-auto min-h-screen w-full max-w-md px-3 pb-24 pt-3 sm:pt-5">
-        <TopBar muted={muted} onMute={toggleMute} onMenu={() => navigate("home")} onAccount={() => navigate("account")} />
+        <TopBar muted={muted} onMute={() => toggleMute()} onMenu={() => navigate("home")} onAccount={() => navigate("account")} />
         {screen === "home" && <HomeScreen navigate={navigate} quickPlay={startGame} />}
         {screen === "setup" && (
           <SetupScreen
@@ -231,6 +284,23 @@ function LudoShell() {
         {screen === "leaderboard" && (
           <PanelPage title="لوحة المتصدرين" icon={<ListOrdered />} onBack={() => navigate("home")}>
             <Leaderboard meId={user?.id ?? null} />
+          </PanelPage>
+        )}
+        {screen === "history" && (
+          <PanelPage title="سجل المباريات" icon={<History />} onBack={() => navigate("home")}>
+            <MatchHistory meId={user?.id ?? null} />
+          </PanelPage>
+        )}
+        {screen === "settings" && (
+          <PanelPage title="الإعدادات" icon={<Settings />} onBack={() => navigate("home")}>
+            <SettingsPanel
+              muted={muted}
+              volume={volume}
+              animations={animations}
+              onMuted={(v) => toggleMute(v)}
+              onVolume={changeVolume}
+              onAnimations={changeAnimations}
+            />
           </PanelPage>
         )}
         {screen === "account" && (
@@ -296,6 +366,8 @@ function HomeScreen({ navigate, quickPlay }: { navigate: (s: Screen) => void; qu
         <ModeCard color="lagoon" icon={<BookOpen />} title="القواعد" subtitle="تعلّم بسرعة" onClick={() => navigate("rules")} />
         <ModeCard color="amber" icon={<Trophy />} title="البطولات" subtitle="جوائز ملكية" onClick={() => navigate("tournaments")} />
         <ModeCard color="palm" icon={<UserCircle2 />} title="حسابي" subtitle="إحصائياتك" onClick={() => navigate("account")} />
+        <ModeCard color="lagoon" icon={<History />} title="سجل المباريات" subtitle="نتائجك الأخيرة" onClick={() => navigate("history")} />
+        <ModeCard color="ruby" icon={<Settings />} title="الإعدادات" subtitle="الصوت والرسوم" onClick={() => navigate("settings")} />
       </div>
 
       <button className="reward-banner" type="button" onClick={() => navigate("rewards")}>
@@ -355,9 +427,9 @@ function BottomNav({ active, navigate }: { active: Screen; navigate: (s: Screen)
   const links: [Screen, React.ReactNode, string][] = [
     ["home", <Home key="h" />, "الرئيسية"],
     ["leaderboard", <ListOrdered key="l" />, "المتصدرون"],
-    ["rules", <BookOpen key="b" />, "القواعد"],
+    ["history", <History key="hh" />, "السجل"],
     ["account", <UserCircle2 key="a" />, "حسابي"],
-    ["setup", <Settings key="s" />, "اللعب"],
+    ["settings", <Settings key="s" />, "الإعدادات"],
   ];
   return <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid w-full max-w-md grid-cols-5 border-t border-ludo-gold/60 bg-ludo-deep/95 px-2 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl">{links.map(([id, icon, label]) => <button type="button" key={id} onClick={() => navigate(id)} className={cn("grid place-items-center gap-0.5 text-[10px] text-ludo-soft", active === id && "text-ludo-gold")}>{icon}<span>{label}</span></button>)}</nav>;
 }
