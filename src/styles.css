@@ -390,6 +390,206 @@
 .domino-preview .domino-horizontal { width: 4rem; height: 2.1rem; }
 .domino-arena .domino-tile { filter: drop-shadow(0 6px 10px rgb(0 0 0 / .45)); }
 
+/* ===== طبقة التكبير/التمرير باللمس داخل ساحة الدومينو ===== */
+.domino-stage { touch-action: none; }
+.domino-zoom {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+.domino-zoom-tools {
+  position: absolute;
+  inset-inline-end: .5rem;
+  bottom: .5rem;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+.domino-zoom-btn {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: .7rem;
+  color: var(--ludo-gold);
+  border: 1px solid color-mix(in oklab, var(--ludo-gold) 55%, transparent);
+  background: linear-gradient(180deg, rgb(255 255 255 / .16), rgb(0 0 0 / .45));
+  box-shadow: 0 4px 10px rgb(0 0 0 / .45), inset 0 1px 0 rgb(255 255 255 / .3);
+}
+.domino-zoom-btn:active { transform: translateY(1px) scale(.97); }
+
+/* وميض تأكيد صحة الوصلة عند وضع الحجرة */
+@keyframes domino-land {
+  0% { filter: drop-shadow(0 0 0 transparent); }
+  35% { filter: drop-shadow(0 0 12px color-mix(in oklab, var(--ludo-gold) 90%, transparent)); }
+  100% { filter: drop-shadow(0 6px 10px rgb(0 0 0 / .45)); }
+}
+.domino-slot-land { animation: domino-land .45s ease-out; }
+
+/* أنيميشن تأكيد تشكيل الجولة */
+@keyframes domino-confirm-ring {
+  0% { transform: scale(.5); opacity: 0; }
+  45% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+.domino-confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.domino-confirm i {
+  position: absolute;
+  width: 62%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  border: 3px solid color-mix(in oklab, var(--ludo-gold) 80%, transparent);
+  animation: domino-confirm-ring .7s ease-out forwards;
+}
+.domino-confirm i:nth-child(2) { animation-delay: .12s; }
+.domino-confirm i:nth-child(3) { animation-delay: .24s; }
+.domino-confirm b {
+  position: relative;
+  padding: .35rem 1rem;
+  border-radius: 999px;
+  font-weight: 900;
+  color: var(--ludo-gold);
+  background: color-mix(in oklab, var(--ludo-deep) 80%, transparent);
+  border: 1px solid color-mix(in oklab, var(--ludo-gold) 60%, transparent);
+  animation: scale-in .3s ease-out;
+}
+
+/* ===== غرفة اللودو (تخطيط مطابق لتصميم المستخدم) ===== */
+.room-top-bar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .35rem .1rem .6rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--ludo-gold) 25%, transparent);
+}
+.room-pill {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: .9rem;
+  color: color-mix(in oklab, white 82%, transparent);
+  background: linear-gradient(180deg, rgb(255 255 255 / .14), rgb(255 255 255 / .05));
+  border: 1px solid rgb(255 255 255 / .14);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .22);
+}
+.room-pill b {
+  position: absolute;
+  top: -.35rem;
+  inset-inline-end: -.35rem;
+  min-width: 1.2rem;
+  padding: 0 .25rem;
+  border-radius: 999px;
+  background: #e11d48;
+  color: #fff;
+  font-size: .65rem;
+  line-height: 1.2rem;
+}
+.room-gems {
+  margin-inline-start: auto;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .3rem .9rem .3rem .4rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #2a0a20, #170512);
+  border: 1px solid rgb(255 255 255 / .12);
+  color: #fff;
+  font-weight: 800;
+}
+.room-gems img { width: 1.9rem; height: 1.9rem; }
+.room-seat { display: grid; justify-items: center; gap: .3rem; }
+.room-avatar {
+  position: relative;
+  width: 4.2rem;
+  height: 4.2rem;
+  border-radius: 999px;
+  border: 4px solid var(--seat, var(--ludo-gold));
+  background: linear-gradient(180deg, #3b1030, #1a0614);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: color-mix(in oklab, white 80%, transparent);
+  box-shadow: 0 6px 16px rgb(0 0 0 / .55);
+}
+.room-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.room-avatar-active { box-shadow: 0 0 0 3px color-mix(in oklab, var(--ludo-gold) 60%, transparent), 0 6px 18px rgb(0 0 0 / .55); }
+.room-name {
+  max-width: 8.5rem;
+  padding: .1rem .55rem;
+  border-radius: .45rem;
+  font-size: .8rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgb(255 255 255 / .12);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.room-ring {
+  position: relative;
+  width: 5.2rem;
+  height: 5.2rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  padding: 5px;
+}
+.room-ring > span {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #3b1030, #1a0614);
+}
+.room-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: conic-gradient(var(--seat, var(--ludo-palm)) calc(var(--pct, 1) * 360deg), rgb(0 0 0 / .55) 0);
+  transition: background .2s linear;
+}
+.room-dice-bubble {
+  position: relative;
+  filter: drop-shadow(0 8px 14px rgb(0 0 0 / .5));
+}
+.room-dice-bubble::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 100%;
+  width: 0;
+  height: 0;
+  border: .55rem solid transparent;
+  border-inline-end-color: color-mix(in oklab, var(--ludo-gold) 35%, #3b1030);
+  transform: translateY(-50%);
+}
+.room-arrow {
+  width: 1.6rem;
+  height: 2.4rem;
+  clip-path: polygon(30% 0, 70% 0, 70% 60%, 100% 60%, 50% 100%, 0 60%, 30% 60%);
+  background: linear-gradient(180deg, #86efac, #16a34a);
+  filter: drop-shadow(0 0 6px rgb(34 197 94 / .8));
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+
 
 /* ===== صناديق ثلاثية الأبعاد ===== */
 .chest-3d {
@@ -989,3 +1189,15 @@
 .voice-wave i { width: 2px; height: 35%; border-radius: 2px; background: var(--ludo-gold); animation: wave 1s ease-in-out infinite; }
 @keyframes wave { 0%,100% { height: 30%; opacity: .6; } 50% { height: 100%; opacity: 1; } }
 .no-anim .voice-wave i, .no-anim .rec-dot { animation: none; }
+
+/* مؤشر مستوى المايك الحي */
+.live-level {
+  position: absolute;
+  inset: auto .18rem .18rem .18rem;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--ludo-palm), var(--ludo-gold));
+  transform-origin: left center;
+  transform: scaleX(calc(var(--lvl, 0)));
+  transition: transform .08s linear;
+}
