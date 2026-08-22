@@ -29,7 +29,7 @@ import {
   type PlacedTile,
   type Tile,
 } from "@/lib/domino/engine";
-import { chainScale, layoutChain } from "@/lib/domino/layout";
+import { chainScale, isChainLayoutValid, layoutChain } from "@/lib/domino/layout";
 import { cn } from "@/lib/utils";
 import modeDomino from "@/assets/mode-domino.png";
 import avatarTiger from "@/assets/avatar-tiger.png";
