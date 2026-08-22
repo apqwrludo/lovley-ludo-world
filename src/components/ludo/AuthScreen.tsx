@@ -30,7 +30,7 @@ function authMessage(raw: string, mode: "login" | "signup"): string {
 
 export function AuthPanel() {
   const { user, profile, loading, signOut, refreshProfile } = useAuth();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -75,7 +75,13 @@ export function AuthPanel() {
     setError(null);
     setNote(null);
     try {
-      if (mode === "signup") {
+      if (mode === "reset") {
+        const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/?recovery=1`,
+        });
+        if (err) throw err;
+        setNote("أرسلنا رسالة إلى بريدك تحتوي رابط إعادة تعيين كلمة المرور");
+      } else if (mode === "signup") {
         const { error: err } = await supabase.auth.signUp({
           email,
           password,
@@ -93,7 +99,9 @@ export function AuthPanel() {
         sfx.start();
       }
     } catch (e) {
-      setError(authMessage(e instanceof Error ? e.message : "", mode));
+      setError(mode === "reset"
+        ? "تعذّر إرسال رسالة إعادة التعيين، تحقق من البريد وحاول مرة أخرى"
+        : authMessage(e instanceof Error ? e.message : "", mode));
     } finally {
       setBusy(false);
     }
@@ -124,14 +132,24 @@ export function AuthPanel() {
           <Input placeholder="اسمك في اللعبة" value={name} onChange={(e) => setName(e.target.value)} />
         )}
         <Input type="email" placeholder="البريد الإلكتروني" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <Input type="password" placeholder="كلمة المرور" value={password} onChange={(e) => setPassword(e.target.value)} />
+        {mode !== "reset" && (
+          <Input type="password" placeholder="كلمة المرور" value={password} onChange={(e) => setPassword(e.target.value)} />
+        )}
       </div>
+
+      <button
+        type="button"
+        className="w-full text-center text-xs text-ludo-gold underline"
+        onClick={() => { setError(null); setNote(null); setMode(mode === "reset" ? "login" : "reset"); }}
+      >
+        {mode === "reset" ? "العودة لتسجيل الدخول" : "نسيت كلمة المرور؟"}
+      </button>
 
       {error && <p className="rounded-lg bg-destructive/20 p-2 text-center text-xs text-destructive-foreground">{error}</p>}
       {note && <p className="rounded-lg bg-ludo-palm/20 p-2 text-center text-xs text-ludo-soft">{note}</p>}
 
-      <Button variant="play" size="xl" className="w-full" disabled={busy || !email || !password} onClick={() => void submit()}>
-        <Mail /> {mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب"}
+      <Button variant="play" size="xl" className="w-full" disabled={busy || !email || (mode !== "reset" && !password)} onClick={() => void submit()}>
+        <Mail /> {mode === "reset" ? "أرسل رابط الاستعادة" : mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب"}
       </Button>
       <Button variant="neon" className="w-full" onClick={() => void google()}>
         <Trophy /> المتابعة بحساب جوجل

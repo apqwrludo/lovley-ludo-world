@@ -159,7 +159,15 @@ export function MatchChat({ meName, context }: { meName: string; context?: ChatC
         <section className="chat-panel glow-rise" dir="rtl" aria-label="دردشة المباراة">
           <header className="chat-head">
             <b>دردشة الغرفة</b>
-            <small>لا تؤثر على نتيجة اللعبة</small>
+            <small className="flex-1">لا تؤثر على نتيجة اللعبة</small>
+            <button
+              type="button"
+              className="chat-close press-3d"
+              aria-label="إغلاق الدردشة"
+              onClick={() => { setOpen(false); sfx.tap(); }}
+            >
+              <X className="size-4" />
+            </button>
           </header>
 
           <div className="chat-list" ref={listRef}>
