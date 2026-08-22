@@ -243,8 +243,8 @@
   position: relative;
   display: grid;
   grid-template-rows: 1fr auto 1fr;
-  width: 2.7rem;
-  height: 5.2rem;
+  width: 1.875rem;
+  height: 3.625rem;
   border-radius: .6rem;
   border: 2px solid var(--ludo-gold);
   background: linear-gradient(160deg, #fffdf4 0%, #f6ecd4 48%, #e2d0ad 100%);
@@ -259,18 +259,18 @@
 .domino-horizontal {
   grid-template-rows: none;
   grid-template-columns: 1fr auto 1fr;
-  width: 5.2rem;
-  height: 2.7rem;
+  width: 3.625rem;
+  height: 1.875rem;
 }
 .domino-half { position: relative; display: block; }
 .domino-half i {
   position: absolute;
-  width: .44rem;
-  height: .44rem;
-  margin: -.22rem 0 0 -.22rem;
+  width: .34rem;
+  height: .34rem;
+  margin: -.17rem 0 0 -.17rem;
   border-radius: 999px;
-  background: radial-gradient(circle at 34% 28%, #8f1146, #3d0620 70%);
-  box-shadow: inset 0 1px 1px rgb(255 255 255 / .45), 0 1px 1px rgb(255 255 255 / .6);
+  background: radial-gradient(circle at 34% 28%, #4a4038, #14100c 70%);
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / .3), 0 1px 1px rgb(255 255 255 / .55);
 }
 .domino-divider {
   background: linear-gradient(90deg, transparent, var(--ludo-gold-dark), transparent);
@@ -350,8 +350,9 @@
 /* خامة الساحة من التصميم المرجعي للمستخدم */
 .domino-felt::before {
   background-image: url("/__l5e/assets-v1/7bb370ca-e9af-4588-ac80-dd97954b58fd/domino-felt.png");
-  background-size: 240px 240px;
-  background-repeat: repeat;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   border-radius: 1.6rem;
   inset: 0;
   box-shadow:
@@ -387,7 +388,9 @@
   background: linear-gradient(90deg, var(--ludo-gold-dark), var(--ludo-gold));
   transition: width .12s linear;
 }
-.domino-hand .domino-tile { width: 2.3rem; height: 4.4rem; }
+.domino-hand .domino-tile { width: 2.35rem; height: 4.5rem; }
+.domino-preview .domino-tile { width: 2.1rem; height: 4rem; }
+.domino-preview .domino-horizontal { width: 4rem; height: 2.1rem; }
 .domino-arena .domino-tile { filter: drop-shadow(0 6px 10px rgb(0 0 0 / .45)); }
 
 
