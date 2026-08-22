@@ -5,6 +5,8 @@ let master: GainNode | null = null;
 let muted = false;
 
 const STORAGE_KEY = "abqor-muted";
+const VOLUME_KEY = "abqor-sfx-volume";
+let volume = 0.6;
 
 export function initAudio() {
   if (typeof window === "undefined") return null;
@@ -13,7 +15,7 @@ export function initAudio() {
     if (!Ctor) return null;
     ctx = new Ctor();
     master = ctx.createGain();
-    master.gain.value = 0.6;
+    master.gain.value = muted ? 0 : volume;
     master.connect(ctx.destination);
   }
   if (ctx.state === "suspended") void ctx.resume();
@@ -29,7 +31,21 @@ export function loadMuted(): boolean {
 export function setMuted(value: boolean) {
   muted = value;
   if (typeof window !== "undefined") window.localStorage.setItem(STORAGE_KEY, value ? "1" : "0");
-  if (master && ctx) master.gain.value = value ? 0 : 0.6;
+  if (master && ctx) master.gain.value = value ? 0 : volume;
+}
+
+/** مستوى المؤثرات من 0 إلى 1 */
+export function loadVolume(): number {
+  if (typeof window === "undefined") return volume;
+  const raw = Number(window.localStorage.getItem(VOLUME_KEY));
+  if (Number.isFinite(raw) && raw >= 0 && raw <= 1) volume = raw;
+  return volume;
+}
+
+export function setVolume(value: number) {
+  volume = Math.min(1, Math.max(0, value));
+  if (typeof window !== "undefined") window.localStorage.setItem(VOLUME_KEY, String(volume));
+  if (master && ctx && !muted) master.gain.value = volume;
 }
 
 function tone(freq: number, start: number, dur: number, type: OscillatorType = "sine", gain = 0.25) {
