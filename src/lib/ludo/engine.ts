@@ -246,3 +246,14 @@ export function tokensDone(state: GameState, seat: SeatId): number {
 export function seatLabel(seat: SeatId): string {
   return SEATS[seat].label;
 }
+
+/** إنهاء الدور تلقائيًا عند انتهاء مهلة الـ15 ثانية */
+export function forfeitTurn(state: GameState): GameState {
+  if (state.phase === "over") return state;
+  const player = currentPlayer(state);
+  return {
+    ...nextTurn({ ...state, sixStreak: 0, dice: null }),
+    message: `انتهى وقت ${player.name} — انتقل الدور`,
+  };
+}
+
