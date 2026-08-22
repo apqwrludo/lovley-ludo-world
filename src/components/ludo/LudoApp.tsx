@@ -378,6 +378,59 @@ function LudoShell() {
     return () => window.clearTimeout(timer);
   }, [game.phase, game.turn, game.dice, player.isBot, moves, commitMove]);
 
+  // ===== المرحلة 12: مؤقت 15 ثانية بتوقيت السيرفر =====
+  const timerActive = screen === "game" && game.phase !== "over" && !player.isBot;
+
+  useEffect(() => {
+    if (!timerActive) {
+      setDeadline(null);
+      return;
+    }
+    let alive = true;
+    warned.current = 0;
+    setRemaining(TURN_SECONDS);
+    void openTurn({ data: { matchId: matchId.current, turn: game.turn } })
+      .then((res) => {
+        if (!alive) return;
+        clockOffset.current = res.serverNow - Date.now();
+        setDeadline(res.deadline);
+        setServerSynced(true);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setDeadline(Date.now() + TURN_SECONDS * 1000);
+        setServerSynced(false);
+      });
+    return () => {
+      alive = false;
+    };
+    // بداية دور جديدة لكل لاعب
+  }, [timerActive, game.turn, openTurn]);
+
+  useEffect(() => {
+    if (!timerActive || deadline === null) return;
+    const tick = window.setInterval(() => {
+      const left = (deadline - (Date.now() + clockOffset.current)) / 1000;
+      setRemaining(Math.max(0, left));
+      const whole = Math.ceil(left);
+      if (whole <= 5 && whole >= 1 && warned.current !== whole) {
+        warned.current = whole;
+        sfx.warn();
+        haptics.tap();
+      }
+      if (left <= 0) {
+        window.clearInterval(tick);
+        sfx.timeout();
+        haptics.turnPass();
+        setDeadline(null);
+        setVerified(false);
+        setGame((g) => forfeitTurn(g));
+      }
+    }, 180);
+    return () => window.clearInterval(tick);
+  }, [timerActive, deadline]);
+
+
   // احتفال + حفظ النتيجة (يتم التحقق منها في السيرفر)
   useEffect(() => {
     if (game.phase !== "over" || game.winner === null) return;
