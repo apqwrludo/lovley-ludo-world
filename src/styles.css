@@ -85,10 +85,10 @@
   --ludo-green: #7cc242;
   --ludo-green-dark: #4d8a22;
   --ludo-soft: #e6c7dd;
-  --ludo-ruby: #e0342f;
-  --ludo-palm: #35b455;
-  --ludo-amber: #f5a623;
-  --ludo-lagoon: #2fb6d8;
+  --ludo-ruby: #ea4937;
+  --ludo-palm: #22ca57;
+  --ludo-amber: #fac61f;
+  --ludo-lagoon: #1e90ff;
   --ludo-surface: #f7f2e2;
   --ludo-board: #5d1442;
   --ludo-line: #2a0820;
@@ -199,6 +199,8 @@
 
 /* إطار اللوحة الخشبي/الذهبي */
 .board-frame { border-radius: 1.15rem; padding: 4%; background: radial-gradient(120% 100% at 50% 0%, #8d2a72 0%, #5c1244 45%, #360a28 100%); box-shadow: inset 0 0 0 3px var(--ludo-gold), inset 0 0 0 6px #7a1350, inset 0 0 30px rgb(0 0 0 / .6), 0 10px 26px rgb(0 0 0 / .6), 0 0 26px color-mix(in oklab, var(--ludo-pink) 35%, transparent); }
+/* إطار خشبي مطابق للتصميم الأصلي */
+.board-wood { border-radius: 1rem; padding: 2.2%; background: linear-gradient(180deg, #9c5f3a, #935938 40%, #6d4127 100%); box-shadow: inset 0 2px 0 rgb(255 255 255 / .18), inset 0 -3px 0 rgb(0 0 0 / .35), 0 10px 22px rgb(0 0 0 / .55); }
 .felt-table { border-radius: 1.15rem; padding: .75rem; background: radial-gradient(120% 100% at 50% 0%, #7d2266 0%, #4d0f39 55%, #2c0821 100%); box-shadow: inset 0 0 0 3px var(--ludo-gold), inset 0 0 26px rgb(0 0 0 / .65), 0 8px 20px rgb(0 0 0 / .55); }
 
 /* نرد مجسّم */

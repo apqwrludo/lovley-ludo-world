@@ -70,18 +70,25 @@ export type Seat = {
   start: number;
   /** خانات الممر المنزلي (5) + المركز */
   home: Cell[];
-  /** مربعات الانتظار (الحوش) */
+  /** مراكز مربعات الانتظار (الحوش) بإحداثيات الشبكة */
   yard: Cell[];
   /** ركن الحوش على الشبكة */
   yardBox: Cell;
 };
 
-const yardSlots = (x: number, y: number): Cell[] => [
-  { x: x + 0.9, y: y + 0.9 },
-  { x: x + 3.1, y: y + 0.9 },
-  { x: x + 0.9, y: y + 3.1 },
-  { x: x + 3.1, y: y + 3.1 },
-];
+/** مراكز الأحجار داخل الحوش مطابقة لصورة التصميم */
+const NEAR = 2.24;
+const FAR = 3.82;
+const yardSlots = (bx: number, by: number): Cell[] => {
+  const xs = bx === 0 ? [NEAR, FAR] : [15 - FAR, 15 - NEAR];
+  const ys = by === 0 ? [NEAR, FAR] : [15 - FAR, 15 - NEAR];
+  return [
+    { x: xs[0]!, y: ys[0]! },
+    { x: xs[1]!, y: ys[0]! },
+    { x: xs[0]!, y: ys[1]! },
+    { x: xs[1]!, y: ys[1]! },
+  ];
+};
 
 export const SEATS: Record<SeatId, Seat> = {
   0: {
