@@ -5,6 +5,10 @@ import { Button } from "@/components/ui/button";
 import { fetchChests, openChest, type Chest, type ChestReward } from "@/lib/economy.functions";
 import { sfx } from "@/lib/audio";
 import { cn } from "@/lib/utils";
+import chestClosed from "@/assets/chest-closed.png";
+import chestOpen from "@/assets/chest-open.png";
+import coinStack from "@/assets/coin-stack.png";
+import gemEmerald from "@/assets/gem-emerald.png";
 
 const REASONS: Record<string, string> = {
   cooldown: "هذا الصندوق لم يجهز بعد",
@@ -146,17 +150,16 @@ export function ChestsPanel({
         const isOpening = opening === chest.code;
         const free = chest.cost_gold === 0 && chest.cost_diamonds === 0;
         return (
-          <article key={chest.code} className="rounded-xl border border-ludo-gold/40 bg-ludo-panel/70 p-4">
-            <div className="flex items-center gap-4">
-              <div
-                className={cn("chest-3d", `chest-tier-${chest.tier}`, isOpening && "chest-shaking")}
-                aria-hidden="true"
-              >
-                <span className="chest-lid" />
-                <span className="chest-body" />
-                <span className="chest-lock" />
-                <span className="chest-glow" />
-              </div>
+          <article key={chest.code} className="glossy-card">
+            <div className="relative flex items-center gap-4">
+              <img
+                src={isOpening ? chestOpen : chestClosed}
+                alt=""
+                width={512}
+                height={512}
+                loading="lazy"
+                className={cn("asset-shine size-20 shrink-0", isOpening && "chest-shaking")}
+              />
               <div className="min-w-0 flex-1">
                 <b className="block text-ludo-gold">{chest.title}</b>
                 <small className="block text-ludo-soft">{chest.description}</small>
@@ -165,11 +168,11 @@ export function ChestsPanel({
                     <span className="text-ludo-palm">مجاني</span>
                   ) : chest.cost_gold > 0 ? (
                     <span className="flex items-center gap-1 text-ludo-gold">
-                      <Coins className="size-4" /> {chest.cost_gold}
+                      <img src={coinStack} alt="" width={512} height={512} loading="lazy" className="size-5" /> {chest.cost_gold}
                     </span>
                   ) : (
                     <span className="flex items-center gap-1 text-ludo-lagoon">
-                      <Gem className="size-4" /> {chest.cost_diamonds}
+                      <img src={gemEmerald} alt="" width={512} height={512} loading="lazy" className="size-5" /> {chest.cost_diamonds}
                     </span>
                   )}
                   {ready && (
@@ -195,8 +198,8 @@ export function ChestsPanel({
       {reward && (
         <div className="fixed inset-0 z-[80] grid place-items-center bg-ludo-deep/85 p-5 backdrop-blur-sm">
           <div className="royal-panel celebrate-pop w-full max-w-sm p-6 text-center">
-            <Sparkles className="mx-auto size-16 text-ludo-gold" />
-            <h3 className="title-ribbon mt-2 text-xl">مكافآت الصندوق</h3>
+            <img src={chestOpen} alt="" width={512} height={512} loading="lazy" className="celebrate-pop mx-auto size-28" />
+            <h3 className="ribbon-title mt-3">مكافآت الصندوق</h3>
             <div className="mt-4 grid gap-2 text-lg">
               <p className="flex items-center justify-center gap-2 text-ludo-gold">
                 <Coins /> {reward.gold} ذهب
