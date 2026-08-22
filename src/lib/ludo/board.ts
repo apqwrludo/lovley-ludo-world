@@ -163,8 +163,8 @@ export const FINISH_OFFSET = 56;
 /** يحوّل موقع القطعة (offset) إلى خانة على الشبكة */
 export function cellForOffset(seat: SeatId, offset: number): Cell {
   const s = SEATS[seat];
-  if (offset <= LAST_RING_OFFSET) return RING[(s.start + offset) % 52];
-  return s.home[offset - LAST_RING_OFFSET - 1];
+  if (offset <= LAST_RING_OFFSET) return RING[(s.start + offset) % 52] ?? CENTER;
+  return s.home[offset - LAST_RING_OFFSET - 1] ?? CENTER;
 }
 
 /** فهرس المسار الدائري لموقع القطعة، أو null إن كانت في الممر المنزلي */

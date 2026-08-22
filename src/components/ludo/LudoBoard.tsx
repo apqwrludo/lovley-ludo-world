@@ -137,20 +137,14 @@ export function LudoBoard({ state, moves, onTokenClick }: Props) {
 
       {/* أهداف الحركة */}
       {moves.map((m) => {
-        const cell = cellForOffset(
-          state.tokens.find((t) => t.id === m.tokenId)!.seat,
-          m.to === FINISH_OFFSET ? FINISH_OFFSET : m.to,
-        );
+        const token = state.tokens.find((t) => t.id === m.tokenId);
+        if (!token) return null;
+        const cell = cellForOffset(token.seat, m.to);
         return (
           <div
             key={`hint-${m.tokenId}`}
-            className="pointer-events-none absolute animate-pulse rounded-full border-2 border-dashed border-ludo-ink/50"
-            style={{
-              left: `${cell.x * U}%`,
-              top: `${cell.y * U}%`,
-              width: `${U}%`,
-              height: `${U}%`,
-            }}
+            className="pointer-events-none absolute animate-pulse rounded-full border-2 border-dashed border-ludo-gold/70"
+            style={{ left: `${cell.x * U}%`, top: `${cell.y * U}%`, width: `${U}%`, height: `${U}%` }}
           />
         );
       })}
@@ -159,8 +153,9 @@ export function LudoBoard({ state, moves, onTokenClick }: Props) {
       {state.tokens.map((t) => {
         const seat = SEATS[t.seat];
         const stack = stackIndex.get(t.id) ?? 0;
-        const cell =
-          t.offset < 0 ? seat.yard[Number(t.id.split("-")[1])] : cellForOffset(t.seat, t.offset);
+        const yardIndex = Number(t.id.split("-")[1]);
+        const cell = t.offset < 0 ? seat.yard[yardIndex] ?? seat.yard[0] : cellForOffset(t.seat, t.offset);
+        if (!cell) return null;
         const jitter = t.offset < 0 ? 0 : stack * 0.16;
         const movable = movableIds.has(t.id);
         const finished = t.offset === FINISH_OFFSET;
@@ -172,30 +167,11 @@ export function LudoBoard({ state, moves, onTokenClick }: Props) {
             disabled={!movable}
             onClick={() => onTokenClick(t.id)}
             aria-label={`قطعة ${seat.label}`}
-            className={cn(
-              "absolute grid place-items-center transition-[left,top] duration-300 ease-out",
-              movable ? "z-20 cursor-pointer" : "z-10 cursor-default",
-            )}
-            style={{
-              left: `${(cell.x + jitter) * U}%`,
-              top: `${(cell.y - jitter) * U}%`,
-              width: `${U}%`,
-              height: `${U}%`,
-            }}
+            className={cn("absolute grid place-items-center transition-[left,top] duration-300 ease-out", movable ? "z-20 cursor-pointer" : "z-10 cursor-default")}
+            style={{ left: `${(cell.x + jitter) * U}%`, top: `${(cell.y - jitter) * U}%`, width: `${U}%`, height: `${U}%` }}
           >
-            <span
-              className={cn(
-                "block h-[76%] w-[76%] rounded-full border-2 border-ludo-surface shadow-[var(--shadow-token)] transition-transform",
-                tokenClasses[seat.token],
-                movable && "scale-110 animate-token-ready",
-                finished && "h-[58%] w-[58%]",
-              )}
-            >
-              <span className="mt-[14%] ms-[14%] block h-[34%] w-[34%] rounded-full bg-ludo-surface/70" />
-            </span>
-            {targets.has(t.id) && (
-              <span className="pointer-events-none absolute inset-0 rounded-full ring-2 ring-ludo-ink/40" />
-            )}
+            <span className={cn("token-star transition-transform", tokenClasses[seat.token], movable && "scale-125 animate-token-ready", finished && "scale-75")}>★</span>
+            {targets.has(t.id) && <span className="pointer-events-none absolute inset-0 rounded-full ring-2 ring-ludo-gold/60" />}
           </button>
         );
       })}

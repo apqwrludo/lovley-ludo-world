@@ -51,7 +51,7 @@ const SEAT_LAYOUTS: Record<number, SeatId[]> = {
 };
 
 export function createGame(playerCount: 2 | 3 | 4, humanCount: number): GameState {
-  const seats = SEAT_LAYOUTS[playerCount];
+  const seats = SEAT_LAYOUTS[playerCount] ?? SEAT_LAYOUTS[4] ?? [0, 1, 2, 3];
   const players: Player[] = seats.map((seat, i) => ({
     seat,
     name: i < humanCount ? `لاعب ${i + 1}` : `روبوت ${i - humanCount + 1}`,
@@ -59,12 +59,9 @@ export function createGame(playerCount: 2 | 3 | 4, humanCount: number): GameStat
   }));
 
   const tokens: Token[] = players.flatMap((p) =>
-    Array.from({ length: 4 }, (_, i) => ({
-      id: `${p.seat}-${i}`,
-      seat: p.seat,
-      offset: -1,
-    })),
+    Array.from({ length: 4 }, (_, i) => ({ id: `${p.seat}-${i}`, seat: p.seat, offset: -1 })),
   );
+  const firstPlayer = players[0] ?? { seat: 0 as SeatId, name: "لاعب 1", isBot: false };
 
   return {
     players,
@@ -76,12 +73,12 @@ export function createGame(playerCount: 2 | 3 | 4, humanCount: number): GameStat
     winner: null,
     lastMovedTokenId: null,
     capturedTokenId: null,
-    message: `دور ${players[0].name} — ارمِ النرد`,
+    message: `دور ${firstPlayer.name} — ارمِ النرد`,
   };
 }
 
 export function currentPlayer(state: GameState): Player {
-  return state.players[state.turn];
+  return state.players[state.turn] ?? state.players[0] ?? { seat: 0, name: "لاعب 1", isBot: false };
 }
 
 export function rollDie(): number {
@@ -221,12 +218,13 @@ export function applyMove(state: GameState, move: Move): GameState {
 
 function nextTurn(state: GameState): GameState {
   const turn = (state.turn + 1) % state.players.length;
+  const player = state.players[turn] ?? state.players[0] ?? { seat: 0 as SeatId, name: "لاعب 1", isBot: false };
   return {
     ...state,
     turn,
     phase: "roll",
     dice: null,
-    message: `دور ${state.players[turn].name} — ارمِ النرد`,
+    message: `دور ${player.name} — ارمِ النرد`,
   };
 }
 
@@ -237,7 +235,8 @@ export function pickBotMove(moves: Move[]): Move {
     (m.finishes ? 800 : 0) +
     (m.entersBoard ? 400 : 0) +
     m.to;
-  return [...moves].sort((a, b) => score(b) - score(a))[0];
+  const selected = [...moves].sort((a, b) => score(b) - score(a))[0];
+  return selected ?? { tokenId: "", from: -1, to: -1, captures: [], finishes: false, entersBoard: false };
 }
 
 export function tokensDone(state: GameState, seat: SeatId): number {
