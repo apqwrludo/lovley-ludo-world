@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ROW_HEIGHT,
+  COL_WIDTH,
   TILE_GAP,
   TILE_LONG,
   TILE_SHORT,
@@ -9,57 +9,54 @@ import {
   type ChainTile,
 } from "./layout";
 
-function chain(n: number, doubleEvery = 0): ChainTile[] {
-  return Array.from({ length: n }, (_, i) => ({
-    id: `t${i}`,
-    left: i,
-    right: doubleEvery && i % doubleEvery === 0 ? i : i + 1,
-  }));
+function chain(n: number): ChainTile[] {
+  return Array.from({ length: n }, (_, i) => ({ id: `t${i}`, left: i % 7, right: (i + 1) % 7 }));
 }
 
-describe("تشكيل سلسلة الدومينو", () => {
+describe("تشكيل سلسلة الدومينو الرأسية", () => {
   it("يضع أول حجر في مركز الساحة تمامًا", () => {
-    const { items } = layoutChain(chain(9), 320);
+    const { items } = layoutChain(chain(9), 420);
     expect(items[0]!.x).toBe(0);
     expect(items[0]!.y).toBe(0);
   });
 
-  it("يثبت الأبعاد والاتجاه: المزدوج عمودي وغيره أفقي", () => {
-    const { items } = layoutChain([{ id: "d", left: 4, right: 4 }, { id: "n", left: 4, right: 2 }], 400);
-    expect(items[0]!.double).toBe(true);
+  it("يثبت الاتجاهات: العادي عمودي والمزدوج أفقي", () => {
+    const { items } = layoutChain(
+      [
+        { id: "d", left: 4, right: 4 },
+        { id: "n", left: 4, right: 2 },
+      ],
+      420,
+    );
     expect(items[0]!.rotation).toBe(90);
     expect(items[1]!.rotation).toBe(0);
   });
 
-  it("يحفظ الفاصل الثابت بين حجرين متتاليين في نفس الصف", () => {
-    const { items } = layoutChain(chain(2), 400);
-    const gap =
-      Math.abs(items[1]!.x - items[0]!.x) - (TILE_LONG / 2 + TILE_LONG / 2);
+  it("يحفظ الفاصل الثابت بين حجرين متتاليين في نفس العمود", () => {
+    const { items } = layoutChain(chain(2), 420);
+    const gap = Math.abs(items[1]!.y - items[0]!.y) - TILE_LONG;
     expect(Math.round(gap)).toBe(TILE_GAP);
   });
 
-  it("يطوي السلسلة في صفوف متبادلة الاتجاه عند ضيق العرض", () => {
-    const { items, rows } = layoutChain(chain(8), TILE_LONG * 2 + TILE_GAP * 2);
-    expect(rows).toBeGreaterThan(1);
-    expect(items.some((it) => it.row === 1)).toBe(true);
-    const r0 = items.filter((it) => it.row === 0);
-    const r1 = items.filter((it) => it.row === 1);
-    // الصف الثاني معكوس الاتجاه (ثعبان)
-    expect(Math.sign(r0[1]!.x - r0[0]!.x)).toBe(-Math.sign(r1[1]!.x - r1[0]!.x));
-    expect(r1[0]!.y - r0[0]!.y).toBe(ROW_HEIGHT);
+  it("يطوي السلسلة في أعمدة متبادلة عند ضيق الارتفاع ويوسع العرض", () => {
+    const { items, columns } = layoutChain(chain(8), TILE_LONG * 2 + TILE_GAP * 2);
+    expect(columns).toBeGreaterThan(1);
+    const c0 = items.filter((it) => it.column === 0);
+    const c1 = items.filter((it) => it.column === 1);
+    expect(Math.sign(c0[1]!.y - c0[0]!.y)).toBe(-Math.sign(c1[1]!.y - c1[0]!.y));
+    expect(Math.abs(c1[0]!.x - c0[0]!.x)).toBe(COL_WIDTH);
   });
 
   it("يوسّع منطقة اللعب مع زيادة القطع", () => {
-    const small = layoutChain(chain(4), 300);
-    const big = layoutChain(chain(20), 300);
-    expect(big.height).toBeGreaterThan(small.height);
-    expect(big.rows).toBeGreaterThan(small.rows);
+    const small = layoutChain(chain(4), 420);
+    const big = layoutChain(chain(20), 420);
+    expect(big.height).toBeGreaterThanOrEqual(small.height);
+    expect(big.width).toBeGreaterThan(small.width);
   });
 
   it("يصغّر السلسلة بدل تضييق الحجارة على بعضها", () => {
-    const layout = layoutChain(chain(24), 320);
-    expect(chainScale(layout, 320, 260)).toBeLessThan(1);
-    expect(chainScale(layoutChain(chain(2), 320), 320, 260)).toBe(1);
+    expect(chainScale(layoutChain(chain(24), 420), 320, 380)).toBeLessThan(1);
+    expect(chainScale(layoutChain(chain(2), 420), 320, 380)).toBe(1);
     expect(TILE_SHORT).toBeLessThan(TILE_LONG);
   });
 });
