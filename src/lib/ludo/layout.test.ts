@@ -34,10 +34,18 @@ describe("تمركز أحجار اللودو", () => {
   });
 
   it("مركز ثقل المجموعة المتكدّسة يطابق مركز الخانة", () => {
-    let game = createGame(4, 4);
-    game = enterToken(game);
-    // إعادة الدور لنفس اللاعب (6 تمنح رمية إضافية) وإدخال حجر ثانٍ لنفس المقعد
-    game = enterToken(game);
+    const base = createGame(4, 4);
+    // حجران لنفس المقعد على نفس الخانة + ثلاثة لمقعد آخر
+    const game: GameState = {
+      ...base,
+      tokens: base.tokens.map((t) =>
+        t.id === "0-0" || t.id === "0-1"
+          ? { ...t, offset: 4 }
+          : t.id === "1-0" || t.id === "1-1" || t.id === "1-2"
+            ? { ...t, offset: 9 }
+            : t,
+      ),
+    };
 
     const grouped = tokenPlacements(game).filter((p) => p.total > 1);
     expect(grouped.length).toBeGreaterThan(0);
