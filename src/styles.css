@@ -821,8 +821,10 @@
     radial-gradient(circle, var(--ludo-plum) 60%, transparent 61%);
   box-shadow: inset 0 0 0 2px rgb(0 0 0 / .5), 0 0 12px color-mix(in oklab, var(--ludo-gold) 45%, transparent);
 }
-.turn-timer-num { position: absolute; margin-right: -2.1rem; width: 2.1rem; text-align: center; font-size: .85rem; font-weight: 900; }
-.turn-timer-meta { display: grid; margin-right: 1.6rem; line-height: 1.1; font-size: .68rem; color: var(--ludo-soft); }
+.turn-timer-dial { position: relative; display: grid; place-items: center; width: 2.1rem; height: 2.1rem; }
+.turn-timer-dial .turn-timer-ring { position: absolute; inset: 0; }
+.turn-timer-num { position: relative; font-size: .8rem; font-weight: 900; }
+.turn-timer-meta { display: grid; line-height: 1.1; font-size: .68rem; color: var(--ludo-soft); }
 .turn-timer-danger { border-color: var(--ludo-pink); color: #fff; animation: timer-pulse .9s ease-in-out infinite; }
 .turn-timer-danger .turn-timer-ring { background: conic-gradient(var(--ludo-pink) var(--pct), rgb(255 255 255 / .12) 0), radial-gradient(circle, var(--ludo-plum) 60%, transparent 61%); }
 @keyframes timer-pulse { 0%,100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--ludo-pink) 60%, transparent); } 50% { box-shadow: 0 0 16px 3px color-mix(in oklab, var(--ludo-pink) 55%, transparent); } }
@@ -831,8 +833,8 @@
 /* ===== المرحلتان 13 و14: دردشة الغرفة ===== */
 .chat-fab {
   position: fixed;
-  bottom: 1.1rem;
-  left: .9rem;
+  bottom: 7.4rem;
+  left: .7rem;
   z-index: 40;
   display: grid;
   place-items: center;
