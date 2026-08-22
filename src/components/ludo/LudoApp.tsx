@@ -230,7 +230,7 @@ function LudoShell() {
         )}
         {screen === "leaderboard" && (
           <PanelPage title="لوحة المتصدرين" icon={<ListOrdered />} onBack={() => navigate("home")}>
-            <Leaderboard meId={user?.id} />
+            <Leaderboard meId={user?.id ?? null} />
           </PanelPage>
         )}
         {screen === "account" && (
