@@ -133,11 +133,21 @@ function LudoShell() {
   const [volume, setVolume] = useState(0.6);
   const [animations, setAnimations] = useState(true);
   const [celebrate, setCelebrate] = useState(false);
+  const [verified, setVerified] = useState(false);
+  const [deadline, setDeadline] = useState<number | null>(null);
+  const [remaining, setRemaining] = useState(TURN_SECONDS);
+  const [serverSynced, setServerSynced] = useState(false);
   const savedFor = useRef<string | null>(null);
   const matchId = useRef<string>("");
   const matchStart = useRef<number>(0);
   const moveCount = useRef(0);
+  const rollSeq = useRef(0);
+  const clockOffset = useRef(0);
+  const warned = useRef(0);
   const sendResult = useServerFn(submitMatchResult);
+  const sendRoll = useServerFn(rollServerDie);
+  const openTurn = useServerFn(startServerTurn);
+
 
   useEffect(() => {
     setMuted(loadMuted());
