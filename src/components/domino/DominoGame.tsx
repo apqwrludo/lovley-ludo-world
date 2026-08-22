@@ -279,13 +279,15 @@ export function DominoGame({
         setPreview(false);
         // أنيميشن فخم لتأكيد التشكيل قبل السماح بالحركة
         setConfirming(true);
-        sfx.dominoConfirm();
-        haptics.tap();
+        if (layoutValid) {
+          sfx.dominoConfirm();
+          haptics.tap();
+        }
         window.setTimeout(() => setConfirming(false), 750);
       }
     }, 60);
     return () => window.clearInterval(id);
-  }, [preview]);
+  }, [preview, layoutValid]);
 
   const restart = () => {
     moveCount.current = 0;
