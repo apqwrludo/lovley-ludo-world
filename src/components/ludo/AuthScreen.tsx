@@ -99,7 +99,9 @@ export function AuthPanel() {
         sfx.start();
       }
     } catch (e) {
-      setError(authMessage(e instanceof Error ? e.message : "", mode));
+      setError(mode === "reset"
+        ? "تعذّر إرسال رسالة إعادة التعيين، تحقق من البريد وحاول مرة أخرى"
+        : authMessage(e instanceof Error ? e.message : "", mode));
     } finally {
       setBusy(false);
     }
@@ -130,14 +132,24 @@ export function AuthPanel() {
           <Input placeholder="اسمك في اللعبة" value={name} onChange={(e) => setName(e.target.value)} />
         )}
         <Input type="email" placeholder="البريد الإلكتروني" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <Input type="password" placeholder="كلمة المرور" value={password} onChange={(e) => setPassword(e.target.value)} />
+        {mode !== "reset" && (
+          <Input type="password" placeholder="كلمة المرور" value={password} onChange={(e) => setPassword(e.target.value)} />
+        )}
       </div>
+
+      <button
+        type="button"
+        className="w-full text-center text-xs text-ludo-gold underline"
+        onClick={() => { setError(null); setNote(null); setMode(mode === "reset" ? "login" : "reset"); }}
+      >
+        {mode === "reset" ? "العودة لتسجيل الدخول" : "نسيت كلمة المرور؟"}
+      </button>
 
       {error && <p className="rounded-lg bg-destructive/20 p-2 text-center text-xs text-destructive-foreground">{error}</p>}
       {note && <p className="rounded-lg bg-ludo-palm/20 p-2 text-center text-xs text-ludo-soft">{note}</p>}
 
-      <Button variant="play" size="xl" className="w-full" disabled={busy || !email || !password} onClick={() => void submit()}>
-        <Mail /> {mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب"}
+      <Button variant="play" size="xl" className="w-full" disabled={busy || !email || (mode !== "reset" && !password)} onClick={() => void submit()}>
+        <Mail /> {mode === "reset" ? "أرسل رابط الاستعادة" : mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب"}
       </Button>
       <Button variant="neon" className="w-full" onClick={() => void google()}>
         <Trophy /> المتابعة بحساب جوجل
