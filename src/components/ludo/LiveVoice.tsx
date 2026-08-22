@@ -130,6 +130,8 @@ export function LiveVoiceButton({ roomId, meName }: { roomId: string; meName: st
         mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
           ? "audio/webm;codecs=opus"
           : "audio/webm",
+        // معدل بت منخفض ⇒ شرائح أصغر وبثّ أسرع بجودة كلام واضحة
+        audioBitsPerSecond: 24_000,
       });
       rec.ondataavailable = async (e) => {
         if (!e.data.size || !micOnRef.current || !channel.current) return;
