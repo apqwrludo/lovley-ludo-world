@@ -45,24 +45,38 @@ export function LiveVoiceButton({ roomId, meName }: { roomId: string; meName: st
 
   useEffect(() => () => stop(), [stop]);
 
-  /** تشغيل شريحة صوت قادمة من لاعب آخر */
-  const playChunk = useCallback(async (b64: string, author: string, mime: string) => {
-    try {
-      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-      const blob = new Blob([bytes], { type: mime || "audio/webm" });
-      const url = URL.createObjectURL(blob);
-      const el = new Audio(url);
-      const release = duckFor(0.5);
-      setSpeakers((s) => (s.includes(author) ? s : [...s, author]));
-      el.onended = () => {
-        release();
-        URL.revokeObjectURL(url);
-        setSpeakers((s) => s.filter((x) => x !== author));
-      };
-      await el.play();
-    } catch {
-      /* شريحة تالفة — تُهمَل بدون التأثير على اللعب */
-    }
+  /**
+   * تشغيل شرائح الصوت القادمة بالتتابع وبأقل تأخير ممكن:
+   * طابور قصير يمنع التقطيع والتراكب، مع خفض مؤثرات اللعبة والتنبيهات
+   * أثناء الحديث فقط (مزامنة الصوت الحي مع تنبيهات الغرفة).
+   */
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  const playChunk = useCallback((b64: string, author: string, mime: string) => {
+    queue.current = queue.current.then(
+      () =>
+        new Promise<void>((resolve) => {
+          try {
+            const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+            const blob = new Blob([bytes], { type: mime || "audio/webm" });
+            const url = URL.createObjectURL(blob);
+            const el = new Audio(url);
+            el.preload = "auto";
+            const release = duckFor(0.35);
+            setSpeakers((s) => (s.includes(author) ? s : [...s, author]));
+            const done = () => {
+              release();
+              URL.revokeObjectURL(url);
+              setSpeakers((s) => s.filter((x) => x !== author));
+              resolve();
+            };
+            el.onended = done;
+            el.onerror = done;
+            void el.play().catch(done);
+          } catch {
+            resolve();
+          }
+        }),
+    );
   }, []);
 
   const start = useCallback(async () => {
