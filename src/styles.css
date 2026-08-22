@@ -616,3 +616,65 @@
 .rarity-rare { background: linear-gradient(180deg, #59c8ee, #1c7fb0); color: #fff; }
 .rarity-epic { background: linear-gradient(180deg, #c98bf5, #7a2bc4); color: #fff; }
 .rarity-legendary { background: linear-gradient(180deg, #ffe07a, #d68b12); color: #3a1206; }
+
+/* ===== شاشة الافتتاح الملكية ===== */
+.splash-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 40%, oklch(0.32 0.16 330 / 0.9), transparent 60%),
+    linear-gradient(180deg, #1a0416, #0b0209 60%, #12020c);
+}
+.splash-halo {
+  position: absolute;
+  width: 22rem;
+  height: 22rem;
+  border-radius: 999px;
+  filter: blur(40px);
+  background: radial-gradient(circle, var(--ludo-pink) 0%, transparent 70%);
+  opacity: 0.5;
+  animation: splash-pulse 2.2s ease-in-out infinite;
+}
+.splash-logo {
+  animation: splash-in 0.8s cubic-bezier(0.2, 1.2, 0.4, 1) both;
+  filter: drop-shadow(0 12px 22px rgb(0 0 0 / 0.6)) drop-shadow(0 0 18px var(--ludo-gold));
+}
+.splash-dice {
+  animation: splash-dice 1.6s ease-in-out infinite;
+  filter: drop-shadow(0 14px 26px rgb(0 0 0 / 0.65)) drop-shadow(0 0 16px var(--ludo-pink));
+}
+.splash-track {
+  margin-top: 0.5rem;
+  width: 12rem;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--ludo-gold) 55%, transparent);
+  background: rgb(0 0 0 / 0.5);
+}
+.splash-track > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--ludo-pink), var(--ludo-gold));
+  animation: splash-load 2.1s ease-out forwards;
+}
+@keyframes splash-in {
+  from { opacity: 0; transform: scale(0.7) translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes splash-dice {
+  0%, 100% { transform: translateY(-6px) rotate(-8deg); }
+  50% { transform: translateY(6px) rotate(10deg); }
+}
+@keyframes splash-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.95); }
+  50% { opacity: 0.6; transform: scale(1.05); }
+}
+@keyframes splash-load {
+  from { width: 6%; }
+  to { width: 100%; }
+}

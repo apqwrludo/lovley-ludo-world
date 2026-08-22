@@ -1,4 +1,4 @@
-import { Sparkles, Volume2, VolumeX } from "lucide-react";
+import { Smartphone, Sparkles, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sfx } from "@/lib/audio";
 import { cn } from "@/lib/utils";
@@ -7,16 +7,20 @@ export function SettingsPanel({
   muted,
   volume,
   animations,
+  haptics,
   onMuted,
   onVolume,
   onAnimations,
+  onHaptics,
 }: {
   muted: boolean;
   volume: number;
   animations: boolean;
+  haptics: boolean;
   onMuted: (v: boolean) => void;
   onVolume: (v: number) => void;
   onAnimations: (v: boolean) => void;
+  onHaptics: (v: boolean) => void;
 }) {
   return (
     <div className="space-y-3">
@@ -54,6 +58,26 @@ export function SettingsPanel({
             muted && "opacity-40",
           )}
         />
+      </section>
+
+      <section className="rounded-xl border border-ludo-gold/35 bg-ludo-panel/70 p-4">
+        <h3 className="mb-3 flex items-center gap-2 font-bold text-ludo-gold">
+          <Smartphone className="size-5" /> الاهتزاز
+        </h3>
+        <div className="flex items-center justify-between gap-3">
+          <span className="min-w-0 text-sm text-ludo-soft">اهتزاز النرد والحركة والالتقاط</span>
+          <Button
+            variant={haptics ? "royal" : "neon"}
+            size="sm"
+            onClick={() => onHaptics(!haptics)}
+            aria-pressed={haptics}
+          >
+            {haptics ? "مفعّل" : "موقوف"}
+          </Button>
+        </div>
+        <p className="mt-3 text-xs text-ludo-soft">
+          يعمل على الأجهزة التي تدعم الاهتزاز فقط، وتوقيته مضبوط على كل انتقال في المباراة.
+        </p>
       </section>
 
       <section className="rounded-xl border border-ludo-gold/35 bg-ludo-panel/70 p-4">
