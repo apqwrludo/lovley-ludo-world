@@ -271,22 +271,27 @@ export function DominoGame({
         <section
           className="domino-arena my-2"
           ref={railRef}
-          style={{ minHeight: `${Math.min(58, 40 + state.board.length * 0.7)}vh` }}
+          data-testid="domino-arena"
+          style={{ minHeight: `${Math.min(58, 40 + layout.rows * 6)}vh` }}
         >
           {state.board.length === 0 ? (
             <p className="text-center text-sm text-ludo-soft">
               ابدأ بوضع أي حجرة في منتصف الساحة
             </p>
           ) : (
-            <div className="domino-chain" style={{ transform: `scale(${boardScale})` }}>
-              {state.board.map((placed: PlacedTile) => (
-                <DominoTile
-                  key={placed.tile.id}
-                  a={placed.left}
-                  b={placed.right}
-                  horizontal={placed.left !== placed.right}
-                />
-              ))}
+            <div className="domino-stage" data-testid="domino-chain">
+              <div className="domino-chain" style={{ transform: `scale(${boardScale})` }}>
+                {layout.items.map((item) => (
+                  <span
+                    key={item.id}
+                    className="domino-slot"
+                    data-first={item.id === layout.items[0]!.id ? "true" : undefined}
+                    style={{ transform: `translate(-50%, -50%) translate(${item.x}px, ${item.y}px)` }}
+                  >
+                    <DominoTile a={item.left} b={item.right} horizontal={!item.double} />
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </section>
@@ -303,6 +308,7 @@ export function DominoGame({
             </Button>
           </div>
         )}
+
 
         {noMove && (
           <div className="mt-2 grid grid-cols-2 gap-2">
