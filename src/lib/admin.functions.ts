@@ -142,14 +142,15 @@ export const adminUpdateProfile = createServerFn({ method: "POST" })
     level: int(input?.level ?? 0, 0, 999),
   }))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.rpc("admin_update_profile", {
+    const args = {
       _uid: data.userId,
       _display_name: data.displayName,
       _avatar: data.avatar,
       _banner: data.banner,
       _frame: data.frame,
-      _level: data.level > 0 ? data.level : undefined,
-    });
+      ...(data.level > 0 ? { _level: data.level } : {}),
+    };
+    const { error } = await context.supabase.rpc("admin_update_profile", args);
     return error ? { ok: false as const, reason: "forbidden" } : { ok: true as const, reason: "ok" };
   });
 
