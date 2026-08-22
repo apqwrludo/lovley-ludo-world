@@ -24,6 +24,23 @@ import {
   VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import brandMark from "@/assets/brand-mark.png";
+import coinStack from "@/assets/coin-stack.png";
+import gemEmerald from "@/assets/gem-emerald.png";
+import giftBox from "@/assets/gift-box.png";
+import chestClosed from "@/assets/chest-closed.png";
+import diceRoyal from "@/assets/dice-royal.png";
+import avatarTiger from "@/assets/avatar-tiger.png";
+import mode2p from "@/assets/mode-2p.png";
+import mode4p from "@/assets/mode-4p.png";
+import modeDomino from "@/assets/mode-domino.png";
+import modeMissions from "@/assets/mode-missions.png";
+import modeRules from "@/assets/mode-rules.png";
+import navHome from "@/assets/nav-home.png";
+import navStore from "@/assets/nav-store.png";
+import navFriends from "@/assets/nav-friends.png";
+import navTrophy from "@/assets/nav-trophy.png";
+import navSettings from "@/assets/nav-settings.png";
 import { Dice } from "./Dice";
 import { LudoBoard } from "./LudoBoard";
 import { RulesContent } from "./RulesScreen";
@@ -390,26 +407,46 @@ function LudoShell() {
 
 function TopBar({ muted, onMute, onMenu, onAccount }: { muted: boolean; onMute: () => void; onMenu: () => void; onAccount: () => void }) {
   const { profile, user } = useAuth();
+  const xp = (profile?.xp ?? 0) % 300;
   return (
-    <header className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2">
-      <Button variant="neonIcon" size="icon" aria-label="القائمة" onClick={onMenu}><Menu /></Button>
-      <Button variant="neonIcon" size="icon" aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"} onClick={onMute}>
-        {muted ? <VolumeX /> : <Volume2 />}
-      </Button>
-      <Brand />
-      <button type="button" onClick={onAccount} className="coin-pill" aria-label="حسابي">
-        <span>{user ? profile?.avatar ?? "👑" : "🪙"}</span>
-        <b>{user ? profile?.points ?? 0 : "دخول"}</b>
-        {!user && <Plus className="size-4" />}
-      </button>
-      {user && (
-        <div className="col-span-4 mt-2 flex items-center justify-center gap-3 rounded-xl border border-ludo-gold/40 bg-ludo-panel/70 px-3 py-1.5 text-xs">
-          <span className="flex items-center gap-1 text-ludo-gold"><Coins className="size-4" /> {profile?.gold ?? 0}</span>
-          <span className="flex items-center gap-1 text-ludo-lagoon"><Gem className="size-4" /> {profile?.diamonds ?? 0}</span>
-          <span className="text-ludo-pink">المستوى {profile?.level ?? 1}</span>
-          <span className="text-ludo-soft">{(profile?.xp ?? 0) % 300}/300 XP</span>
+    <header className="space-y-2">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+        <button type="button" onClick={onAccount} className="relative" aria-label="حسابي">
+          <span className="level-orb">
+            {user ? (
+              profile?.avatar && profile.avatar.length <= 3
+                ? <span>{profile.avatar}</span>
+                : <img src={avatarTiger} alt="" width={512} height={512} loading="lazy" />
+            ) : <img src={avatarTiger} alt="" width={512} height={512} loading="lazy" />}
+          </span>
+          <span className="level-chip">{user ? `مستوى ${profile?.level ?? 1}` : "دخول"}</span>
+        </button>
+        <div className="min-w-0">
+          <div className="flex items-center justify-end gap-2">
+            <button type="button" onClick={onAccount} className="hud-pill" aria-label="الذهب">
+              <img src={coinStack} alt="" width={512} height={512} loading="lazy" />
+              <b>{user ? profile?.gold ?? 0 : 0}</b>
+              <span className="hud-plus">+</span>
+            </button>
+            <button type="button" onClick={onAccount} className="hud-pill" aria-label="الجواهر">
+              <img src={gemEmerald} alt="" width={512} height={512} loading="lazy" />
+              <b>{user ? profile?.diamonds ?? 0 : 0}</b>
+              <span className="hud-plus">+</span>
+            </button>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <div className="xp-track flex-1"><span className="xp-fill" style={{ width: `${(xp / 300) * 100}%` }} /></div>
+            <small className="shrink-0 text-[10px] font-bold text-ludo-gold">{xp}/300 XP</small>
+          </div>
         </div>
-      )}
+        <div className="grid gap-1">
+          <Button variant="neonIcon" size="icon" aria-label="القائمة" onClick={onMenu}><Menu /></Button>
+          <Button variant="neonIcon" size="icon" aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"} onClick={onMute}>
+            {muted ? <VolumeX /> : <Volume2 />}
+          </Button>
+        </div>
+      </div>
+      <Brand />
     </header>
   );
 }
@@ -417,7 +454,7 @@ function TopBar({ muted, onMute, onMenu, onAccount }: { muted: boolean; onMute: 
 function Brand() {
   return (
     <div className="min-w-0 text-center">
-      <Crown className="mx-auto -mb-1 size-8 text-ludo-gold drop-shadow-[0_0_8px_var(--ludo-gold)]" fill="currentColor" />
+      <img src={brandMark} alt="شعار عبقور لودو" width={512} height={512} className="asset-shine mx-auto -mb-2 size-16" />
       <h1 className="truncate font-display text-2xl font-black text-ludo-gold text-shadow-glow">ABQOR LUDO</h1>
       <p className="-mt-1 text-xs font-bold text-ludo-pink">عبقور لودو</p>
     </div>
@@ -426,47 +463,56 @@ function Brand() {
 
 function HomeScreen({ navigate, quickPlay, dominoPlay }: { navigate: (s: Screen) => void; quickPlay: () => void; dominoPlay: () => void }) {
   return (
-    <main className="mt-4 space-y-4">
-      <section className="royal-panel glow-rise relative overflow-hidden p-5 text-center">
-        <div className="crown-pattern" aria-hidden="true" />
-        <div className="absolute inset-x-8 top-4 h-28 rounded-full bg-ludo-pink/15 blur-3xl" />
-        <div className="relative mx-auto mb-2 grid size-32 place-items-center">
-          <div className="absolute inset-2 rotate-45 rounded-3xl border-2 border-ludo-gold/70 bg-ludo-purple shadow-[0_0_24px_var(--ludo-pink)]" />
-          <Crown className="celebrate-pop relative size-20 text-ludo-gold" fill="currentColor" />
-          <Sparkles className="absolute left-0 top-2 size-7 text-ludo-pink" />
-          <Sparkles className="absolute bottom-2 right-0 size-6 text-ludo-gold" />
-        </div>
-        <h2 className="title-ribbon">مملكة الحظ تبدأ هنا</h2>
-        <p className="mt-3 text-sm text-ludo-soft">اجمع أصدقاءك، حرّك تيجانك، وكن أول من يصل إلى العرش</p>
-      </section>
+    <main className="mt-3 space-y-4 pb-24">
+      <h2 className="ribbon-title">اختر نمط اللعب</h2>
 
       <div className="grid grid-cols-2 gap-3">
-        <ModeCard color="palm" icon={<Bot />} title="لعب سريع" subtitle="ضد الروبوت" onClick={quickPlay} />
-        <ModeCard color="amber" icon={<Users />} title="لعب محلي" subtitle="2 – 4 لاعبين" onClick={() => navigate("setup")} />
-        <ModeCard color="ruby" icon={<ListOrdered />} title="المتصدرون" subtitle="ترتيب اللاعبين" onClick={() => navigate("leaderboard")} />
-        <ModeCard color="lagoon" icon={<BookOpen />} title="القواعد" subtitle="تعلّم بسرعة" onClick={() => navigate("rules")} />
-        <ModeCard color="lagoon" icon={<Layers />} title="دومينو" subtitle="حجارة ثلاثية الأبعاد" onClick={dominoPlay} />
-        <ModeCard color="ruby" icon={<Target />} title="المهام" subtitle="يومية وأسبوعية" onClick={() => navigate("missions")} />
-        <ModeCard color="amber" icon={<Gift />} title="الصناديق" subtitle="مكافآت وجواهر" onClick={() => navigate("chests")} />
-        <ModeCard color="amber" icon={<Trophy />} title="البطولات" subtitle="جوائز ملكية" onClick={() => navigate("tournaments")} />
-        <ModeCard color="palm" icon={<UserCircle2 />} title="حسابي" subtitle="إحصائياتك" onClick={() => navigate("account")} />
-        <ModeCard color="lagoon" icon={<History />} title="سجل المباريات" subtitle="نتائجك الأخيرة" onClick={() => navigate("history")} />
-        <ModeCard color="ruby" icon={<Settings />} title="الإعدادات" subtitle="الصوت والرسوم" onClick={() => navigate("settings")} />
+        <ModeCard tone="green" img={mode2p} title="لعب سريع" subtitle="ضد الروبوت" onClick={quickPlay} />
+        <ModeCard tone="gold" img={mode4p} title="لعب محلي" subtitle="2 – 4 لاعبين" onClick={() => navigate("setup")} />
+        <ModeCard tone="violet" img={modeDomino} title="دومينو" subtitle="حجارة ثلاثية الأبعاد" onClick={dominoPlay} />
+        <ModeCard tone="pink" img={navTrophy} title="المتصدرون" subtitle="ترتيب اللاعبين" onClick={() => navigate("leaderboard")} />
       </div>
 
-      <button className="reward-banner" type="button" onClick={() => navigate("chests")}>
-        <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-ludo-pink/20"><Gift className="size-9 text-ludo-gold" /></span>
-        <span className="min-w-0 text-right"><b className="block text-lg text-ludo-gold">هدية اليوم جاهزة!</b><small className="text-ludo-soft">افتح الصندوق واجمع العملات</small></span>
-        <ChevronLeft className="size-6 shrink-0 text-ludo-gold" />
+      <section className="glossy-card">
+        <div className="relative grid grid-cols-4 gap-2">
+          <SmallTile img={modeMissions} label="المهام" onClick={() => navigate("missions")} />
+          <SmallTile img={chestClosed} label="الصناديق" onClick={() => navigate("chests")} />
+          <SmallTile img={modeRules} label="القواعد" onClick={() => navigate("rules")} />
+          <SmallTile img={navFriends} label="الغرف" onClick={() => navigate("rooms")} />
+          <SmallTile img={navTrophy} label="البطولات" onClick={() => navigate("tournaments")} />
+          <SmallTile img={diceRoyal} label="السجل" onClick={() => navigate("history")} />
+          <SmallTile img={avatarTiger} label="حسابي" onClick={() => navigate("account")} />
+          <SmallTile img={navSettings} label="الإعدادات" onClick={() => navigate("settings")} />
+        </div>
+      </section>
+
+      <button className="glossy-card flex w-full items-center gap-3 text-right" type="button" onClick={() => navigate("chests")}>
+        <img src={giftBox} alt="" width={512} height={512} loading="lazy" className="asset-shine relative size-16 shrink-0" />
+        <span className="relative min-w-0 flex-1">
+          <b className="block text-lg text-ludo-gold">هدية اليوم جاهزة!</b>
+          <small className="text-ludo-soft">افتح الصندوق واجمع الذهب والجواهر</small>
+        </span>
+        <ChevronLeft className="relative size-6 shrink-0 text-ludo-gold" />
       </button>
     </main>
   );
 }
 
-function ModeCard({ color, icon, title, subtitle, onClick }: { color: string; icon: React.ReactNode; title: string; subtitle: string; onClick: () => void }) {
+function ModeCard({ tone, img, title, subtitle, onClick }: { tone: string; img: string; title: string; subtitle: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="game-tile group" style={{ ["--tile" as string]: `var(--ludo-${color})` }}>
-      <span className="game-tile-icon">{icon}</span><b>{title}</b><small>{subtitle}</small>
+    <button type="button" onClick={onClick} className={cn("mode-tile", `tile-${tone}`)}>
+      <img src={img} alt="" width={512} height={512} loading="lazy" />
+      <b>{title}</b>
+      <small>{subtitle}</small>
+    </button>
+  );
+}
+
+function SmallTile({ img, label, onClick }: { img: string; label: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="relative grid place-items-center gap-1 rounded-xl border border-white/15 bg-black/25 p-2 transition active:translate-y-0.5">
+      <img src={img} alt="" width={512} height={512} loading="lazy" className="asset-shine size-10" />
+      <small className="text-[10px] font-bold text-ludo-soft">{label}</small>
     </button>
   );
 }
@@ -508,14 +554,23 @@ function PanelPage({ title, icon, onBack, children }: { title: string; icon: Rea
 function SettingBlock({ title, children }: { title: string; children: React.ReactNode }) { return <section className="mb-3 rounded-xl border border-ludo-gold/35 bg-ludo-panel/70 p-3"><h3 className="mb-3 font-bold text-ludo-gold">{title}</h3>{children}</section>; }
 
 function BottomNav({ active, navigate }: { active: Screen; navigate: (s: Screen) => void }) {
-  const links: [Screen, React.ReactNode, string][] = [
-    ["home", <Home key="h" />, "الرئيسية"],
-    ["leaderboard", <ListOrdered key="l" />, "المتصدرون"],
-    ["history", <History key="hh" />, "السجل"],
-    ["account", <UserCircle2 key="a" />, "حسابي"],
-    ["settings", <Settings key="s" />, "الإعدادات"],
+  const links: [Screen, string, string][] = [
+    ["home", navHome, "الرئيسية"],
+    ["leaderboard", navTrophy, "المتصدرون"],
+    ["chests", navStore, "المتجر"],
+    ["account", navFriends, "حسابي"],
+    ["settings", navSettings, "الإعدادات"],
   ];
-  return <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid w-full max-w-md grid-cols-5 border-t border-ludo-gold/60 bg-ludo-deep/95 px-2 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl">{links.map(([id, icon, label]) => <button type="button" key={id} onClick={() => navigate(id)} className={cn("grid place-items-center gap-0.5 text-[10px] text-ludo-soft", active === id && "text-ludo-gold")}>{icon}<span>{label}</span></button>)}</nav>;
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid w-full max-w-md grid-cols-5 gap-1 border-t-2 border-ludo-gold/70 bg-[linear-gradient(180deg,#4a0d33,#170512)] px-2 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_24px_rgb(0_0_0/.55)]">
+      {links.map(([id, icon, label]) => (
+        <button type="button" key={id} onClick={() => navigate(id)} className={cn("nav-3d", active === id && "nav-3d-active")}>
+          <img src={icon} alt="" width={512} height={512} loading="lazy" />
+          <span>{label}</span>
+        </button>
+      ))}
+    </nav>
+  );
 }
 
 function GameScreen({ state, moves, rolling, muted, celebrate, onMute, onRoll, onToken, onHome, onRules, onRestart }: { state: GameState; moves: ReturnType<typeof legalMoves>; rolling: boolean; muted: boolean; celebrate: boolean; onMute: () => void; onRoll: () => void; onToken: (id: string) => void; onHome: () => void; onRules: () => void; onRestart: () => void }) {
