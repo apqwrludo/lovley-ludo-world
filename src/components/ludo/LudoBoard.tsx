@@ -11,12 +11,14 @@ type Props = {
   onTokenClick: (tokenId: string) => void;
 };
 
-const tokenClasses: Record<string, string> = {
-  ruby: "bg-ludo-ruby",
-  palm: "bg-ludo-palm",
-  amber: "bg-ludo-amber",
-  lagoon: "bg-ludo-lagoon",
-};
+function CrownGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-[52%] w-[52%]" aria-hidden="true" fill="currentColor">
+      <path d="M3 8.2l4.1 3L12 4.8l4.9 6.4 4.1-3L19 19H5L3 8.2zM5.6 20.4h12.8v1.8H5.6v-1.8z" />
+    </svg>
+  );
+}
+
 
 const softClasses: Record<string, string> = {
   ruby: "bg-ludo-ruby/15",
@@ -170,7 +172,17 @@ export function LudoBoard({ state, moves, onTokenClick }: Props) {
             className={cn("absolute grid place-items-center transition-[left,top] duration-300 ease-out", movable ? "z-20 cursor-pointer" : "z-10 cursor-default")}
             style={{ left: `${(cell.x + jitter) * U}%`, top: `${(cell.y - jitter) * U}%`, width: `${U}%`, height: `${U}%` }}
           >
-            <span className={cn("token-star transition-transform", tokenClasses[seat.token], movable && "scale-125 animate-token-ready", finished && "scale-75")}>★</span>
+            <span
+              className={cn(
+                "coin-token",
+                movable && "animate-token-ready",
+                finished && "scale-[.68]",
+                state.lastMovedTokenId === t.id && "animate-token-pop",
+              )}
+              style={{ ["--seat" as string]: `var(--ludo-${seat.token})` }}
+            >
+              <CrownGlyph />
+            </span>
             {targets.has(t.id) && <span className="pointer-events-none absolute inset-0 rounded-full ring-2 ring-ludo-gold/60" />}
           </button>
         );

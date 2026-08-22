@@ -133,13 +133,75 @@
 .player-plate-active { opacity: 1; box-shadow: 0 0 13px color-mix(in oklab, var(--seat) 75%, transparent), inset 0 0 9px color-mix(in oklab, var(--seat) 18%, transparent); }
 .turn-dot { width: .45rem; height: .45rem; flex: none; border-radius: 50%; background: var(--seat); box-shadow: 0 0 9px var(--seat); animation: stars-pulse .8s ease-in-out infinite alternate; }
 
-.token-star { display: grid; width: 88%; height: 88%; place-items: center; clip-path: polygon(50% 0%,61% 34%,98% 35%,68% 56%,79% 91%,50% 70%,21% 91%,32% 56%,2% 35%,39% 34%); border: 0; color: color-mix(in oklab, currentColor 85%, var(--ludo-surface)); font-size: clamp(.55rem,2.5vw,1rem); line-height: 1; filter: drop-shadow(0 2px 0 var(--ludo-deep)) drop-shadow(0 0 4px currentColor); text-shadow: inset 0 1px var(--ludo-surface); }
+/* ===== قطع بهيئة عملات ثلاثية الأبعاد بتاج بارز ===== */
+.coin-token {
+  position: relative;
+  display: grid;
+  width: 92%;
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 26%, color-mix(in oklab, var(--seat) 12%, white) 0 12%, transparent 46%),
+    conic-gradient(from 210deg, color-mix(in oklab, var(--seat) 55%, white) 0deg, var(--seat) 90deg, color-mix(in oklab, var(--seat) 60%, black) 200deg, var(--seat) 300deg, color-mix(in oklab, var(--seat) 55%, white) 360deg);
+  box-shadow:
+    inset 0 0 0 6% color-mix(in oklab, var(--ludo-gold) 88%, transparent),
+    inset 0 -12% 14% color-mix(in oklab, black 45%, transparent),
+    inset 0 12% 12% color-mix(in oklab, white 45%, transparent),
+    0 8% 10% color-mix(in oklab, black 55%, transparent),
+    0 0 12% color-mix(in oklab, var(--seat) 75%, transparent);
+  color: var(--ludo-gold);
+  transition: transform .2s, filter .2s;
+}
+.coin-token::after {
+  content: "";
+  position: absolute;
+  inset: 14%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 120%, color-mix(in oklab, var(--seat) 80%, black), color-mix(in oklab, var(--seat) 70%, white) 130%);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ludo-gold) 60%, transparent);
+}
+.coin-token svg { position: relative; z-index: 1; filter: drop-shadow(0 1px 1px color-mix(in oklab, black 70%, transparent)); }
+.coin-card { border: 1px solid color-mix(in oklab, var(--ludo-gold) 55%, transparent); border-radius: .9rem; background: linear-gradient(150deg, color-mix(in oklab, var(--ludo-purple) 85%, transparent), var(--ludo-panel)); padding: .75rem; box-shadow: inset 0 0 18px color-mix(in oklab, var(--ludo-pink) 14%, transparent); }
 
-@keyframes dice-roll { 0%{transform:rotate(0) scale(1)} 30%{transform:rotate(100deg) scale(1.13)} 65%{transform:rotate(220deg) scale(.92)} 100%{transform:rotate(360deg) scale(1)} }
-@keyframes token-ready { from{filter:brightness(1) drop-shadow(0 0 2px currentColor)} to{filter:brightness(1.45) drop-shadow(0 0 8px currentColor)} }
+.rank-badge { display: grid; width: 1.75rem; height: 1.75rem; flex: none; place-items: center; border: 1px solid color-mix(in oklab, var(--ludo-gold) 60%, transparent); border-radius: 50%; background: var(--ludo-purple); color: var(--ludo-gold); font-size: .8rem; font-weight: 800; }
+.rank-gold { background: linear-gradient(160deg, oklch(.92 .16 92), oklch(.72 .16 76)); color: var(--ludo-deep); }
+.rank-silver { background: linear-gradient(160deg, oklch(.92 .02 280), oklch(.72 .02 280)); color: var(--ludo-deep); }
+.rank-bronze { background: linear-gradient(160deg, oklch(.8 .12 55), oklch(.6 .12 45)); color: var(--ludo-deep); }
+
+/* نقش تيجان خفيف على الخلفية */
+.crown-pattern {
+  position: absolute;
+  inset: 0;
+  opacity: .07;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 24 24' fill='%23f5c451'%3E%3Cpath d='M3 8l4 3 5-6 5 6 4-3-2 10H5L3 8zm2 12h14v2H5v-2z'/%3E%3C/svg%3E");
+  background-size: 72px 72px;
+}
+
+/* إطار اللوحة الخشبي/الذهبي */
+.board-frame { border-radius: 1.15rem; padding: 4%; background: linear-gradient(145deg, oklch(.42 .09 55), oklch(.24 .06 45) 45%, oklch(.38 .08 52)); box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--ludo-gold) 75%, transparent), inset 0 0 22px color-mix(in oklab, black 55%, transparent), 0 10px 26px color-mix(in oklab, black 60%, transparent), 0 0 26px color-mix(in oklab, var(--ludo-pink) 40%, transparent); }
+
+/* نرد مجسّم */
+.dice-3d { position: relative; border-radius: .9rem; background: linear-gradient(150deg, white, oklch(.9 .02 95) 55%, oklch(.78 .03 92)); box-shadow: inset 0 2px 3px white, inset 0 -6px 8px color-mix(in oklab, black 22%, transparent), 0 5px 0 color-mix(in oklab, var(--seat) 45%, black), 0 0 18px color-mix(in oklab, var(--seat) 70%, transparent); }
+.dice-pip { border-radius: 50%; background: radial-gradient(circle at 35% 30%, oklch(.45 .05 300), var(--ludo-ink)); box-shadow: inset 0 -1px 1px white; }
+
+/* احتفال */
+.confetti { position: fixed; inset: 0; z-index: 60; pointer-events: none; overflow: hidden; }
+.confetti i { position: absolute; top: -8%; width: .55rem; height: .9rem; border-radius: 2px; animation: confetti-fall linear forwards; }
+.celebrate-pop { animation: celebrate-pop .7s cubic-bezier(.2,1.4,.4,1) both; }
+.glow-rise { animation: glow-rise .6s ease-out both; }
+
+@keyframes confetti-fall { to { transform: translateY(115vh) rotate(760deg); opacity: .15; } }
+@keyframes celebrate-pop { 0%{transform:scale(.5) rotate(-12deg);opacity:0} 60%{transform:scale(1.12) rotate(4deg);opacity:1} 100%{transform:scale(1) rotate(0);opacity:1} }
+@keyframes glow-rise { from{transform:translateY(14px);opacity:0;filter:brightness(1.6)} to{transform:translateY(0);opacity:1;filter:brightness(1)} }
+@keyframes dice-roll { 0%{transform:rotate(0) scale(1)} 20%{transform:rotate(90deg) scale(1.16) translateY(-6px)} 45%{transform:rotate(200deg) scale(.9) translateY(2px)} 70%{transform:rotate(290deg) scale(1.08) translateY(-3px)} 100%{transform:rotate(360deg) scale(1)} }
+@keyframes token-ready { from{transform:scale(1.06);filter:brightness(1) drop-shadow(0 0 2px currentColor)} to{transform:scale(1.2);filter:brightness(1.35) drop-shadow(0 0 9px var(--ludo-gold))} }
+@keyframes token-pop { 0%{transform:scale(1)} 45%{transform:scale(1.45)} 100%{transform:scale(1)} }
 @keyframes stars-drift { to{transform:translateY(43px)} }
 @keyframes stars-pulse { from{opacity:.25} to{opacity:.75} }
 .animate-dice-roll { animation: dice-roll .55s ease-in-out; }
 .animate-token-ready { animation: token-ready .75s ease-in-out infinite alternate; }
+.animate-token-pop { animation: token-pop .45s ease-out; }
 
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; } }
+
