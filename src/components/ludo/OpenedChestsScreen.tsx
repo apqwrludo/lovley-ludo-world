@@ -78,7 +78,6 @@ export function OpenedChestsPanel({ signedIn }: { signedIn: boolean }) {
 
   return (
     <div className="space-y-4">
-      <h3 className="ribbon-title mb-4">الصناديق المفتوحة</h3>
 
       {!openings.length ? (
         <div className="glossy-card text-center">

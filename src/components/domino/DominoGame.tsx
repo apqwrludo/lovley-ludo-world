@@ -218,7 +218,7 @@ export function DominoGame({
             <Home />
           </Button>
           <div className="text-center">
-            <img src={modeDomino} alt="" width={512} height={512} className="asset-shine mx-auto size-12" />
+            <img src={modeDomino} alt="" width={512} height={512} className="asset-shine mx-auto size-9" />
             <h1 className="font-display text-xl font-black text-ludo-gold text-shadow-glow">دومينو عبقور</h1>
             <p className="text-xs text-ludo-soft">
               المخزون: {state.stock.length} حجرة
