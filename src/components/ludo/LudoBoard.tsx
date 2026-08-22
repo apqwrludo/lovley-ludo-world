@@ -11,12 +11,14 @@ type Props = {
   onTokenClick: (tokenId: string) => void;
 };
 
-const tokenClasses: Record<string, string> = {
-  ruby: "bg-ludo-ruby",
-  palm: "bg-ludo-palm",
-  amber: "bg-ludo-amber",
-  lagoon: "bg-ludo-lagoon",
-};
+function CrownGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-[52%] w-[52%]" aria-hidden="true" fill="currentColor">
+      <path d="M3 8.2l4.1 3L12 4.8l4.9 6.4 4.1-3L19 19H5L3 8.2zM5.6 20.4h12.8v1.8H5.6v-1.8z" />
+    </svg>
+  );
+}
+
 
 const softClasses: Record<string, string> = {
   ruby: "bg-ludo-ruby/15",
