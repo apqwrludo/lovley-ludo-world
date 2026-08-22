@@ -271,7 +271,7 @@ export function DominoGame({
                   key={placed.tile.id}
                   a={placed.left}
                   b={placed.right}
-                  horizontal
+                  horizontal={placed.left !== placed.right}
                 />
               ))}
             </div>
