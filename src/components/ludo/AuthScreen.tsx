@@ -75,7 +75,13 @@ export function AuthPanel() {
     setError(null);
     setNote(null);
     try {
-      if (mode === "signup") {
+      if (mode === "reset") {
+        const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/?recovery=1`,
+        });
+        if (err) throw err;
+        setNote("أرسلنا رسالة إلى بريدك تحتوي رابط إعادة تعيين كلمة المرور");
+      } else if (mode === "signup") {
         const { error: err } = await supabase.auth.signUp({
           email,
           password,
