@@ -36,8 +36,10 @@ export function LudoBoard({ state, moves, onTokenClick }: Props) {
   // ترتيب القطع المتكدّسة على نفس الخانة
   const stackIndex = new Map<string, number>();
   const counts = new Map<string, number>();
+  const cellKeys = new Map<string, string>();
   for (const t of state.tokens) {
     const cell = t.offset < 0 ? `yard-${t.id}` : keyOf(t.seat, t.offset);
+    cellKeys.set(t.id, cell);
     const n = counts.get(cell) ?? 0;
     stackIndex.set(t.id, n);
     counts.set(cell, n + 1);
