@@ -152,4 +152,35 @@ export const sfx = {
     [523, 659, 784, 1046, 1318].forEach((f, i) => tone(f, i * 0.12, 0.42, "triangle", 0.2));
     noiseBurst(0.1, 0.5, 0.14, 3800);
   },
+  /** إشعار رسالة دردشة — نغمة قصيرة لا تتعارض مع أصوات اللعب */
+  chat() {
+    tone(760, 0, 0.06, "sine", 0.12);
+    tone(1010, 0.07, 0.08, "sine", 0.1);
+  },
 };
+
+/**
+ * خفض مؤقّت لمستوى المؤثرات (Ducking) أثناء تشغيل صوت لاعب،
+ * حتى لا تتزامن نغمات الإشعارات مع الرسالة الصوتية.
+ */
+export function duckFor(seconds: number) {
+  const audio = initAudio();
+  if (!audio || !master || muted) return () => {};
+  const t = audio.currentTime;
+  const low = Math.max(0.05, volume * 0.25);
+  master.gain.cancelScheduledValues(t);
+  master.gain.setTargetAtTime(low, t, 0.05);
+  const restore = () => {
+    if (!master || !ctx) return;
+    const now = ctx.currentTime;
+    master.gain.cancelScheduledValues(now);
+    master.gain.setTargetAtTime(muted ? 0 : volume, now, 0.08);
+  };
+  const timer = typeof window !== "undefined"
+    ? window.setTimeout(restore, Math.max(200, seconds * 1000))
+    : 0;
+  return () => {
+    if (timer) window.clearTimeout(timer);
+    restore();
+  };
+}
