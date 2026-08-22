@@ -53,7 +53,7 @@ function suggestFor(ctx: ChatContext | undefined): string[] {
  * دردشة غرفة المباراة: نصية عربية RTL + دردشة سريعة + إيموجي + رسائل صوتية حقيقية
  * (تسجيل عبر الميكروفون). الدردشة معزولة تمامًا عن منطق اللعبة ولا تؤثر على النتيجة.
  */
-export function MatchChat({ meName, context }: { meName: string; context?: ChatContext }) {
+export function MatchChat({ meName, context }: { meName: string; context?: ChatContext | undefined }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("quick");
   const [draft, setDraft] = useState("");

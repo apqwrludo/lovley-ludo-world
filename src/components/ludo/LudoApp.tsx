@@ -819,7 +819,7 @@ function BottomNav({ active, navigate }: { active: Screen; navigate: (s: Screen)
   );
 }
 
-function GameScreen({ state, moves, rolling, muted, celebrate, events, verified, remaining, timerActive, serverSynced, meName, chatContext, onMute, onRoll, onToken, onHome, onRules, onRestart }: { state: GameState; moves: ReturnType<typeof legalMoves>; rolling: boolean; muted: boolean; celebrate: boolean; events: MatchEvent[]; verified: boolean; remaining: number; timerActive: boolean; serverSynced: boolean; meName: string; chatContext?: ChatContext; onMute: () => void; onRoll: () => void; onToken: (id: string) => void; onHome: () => void; onRules: () => void; onRestart: () => void }) {
+function GameScreen({ state, moves, rolling, muted, celebrate, events, verified, remaining, timerActive, serverSynced, meName, chatContext, onMute, onRoll, onToken, onHome, onRules, onRestart }: { state: GameState; moves: ReturnType<typeof legalMoves>; rolling: boolean; muted: boolean; celebrate: boolean; events: MatchEvent[]; verified: boolean; remaining: number; timerActive: boolean; serverSynced: boolean; meName: string; chatContext?: ChatContext | undefined; onMute: () => void; onRoll: () => void; onToken: (id: string) => void; onHome: () => void; onRules: () => void; onRestart: () => void }) {
   const player = currentPlayer(state);
   const seat = SEATS[player.seat];
   return <div className="ludo-shell min-h-screen" dir="rtl"><Starfield /><div className="crown-pattern fixed inset-0" aria-hidden="true" /><main className="relative mx-auto flex min-h-screen w-full max-w-xl flex-col px-2 pb-4 pt-2">

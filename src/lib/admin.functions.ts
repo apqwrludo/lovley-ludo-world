@@ -148,7 +148,7 @@ export const adminUpdateProfile = createServerFn({ method: "POST" })
       _avatar: data.avatar,
       _banner: data.banner,
       _frame: data.frame,
-      _level: data.level || null,
+      _level: data.level > 0 ? data.level : undefined,
     });
     return error ? { ok: false as const, reason: "forbidden" } : { ok: true as const, reason: "ok" };
   });

@@ -32,10 +32,10 @@ describe("حالات السباق بين المؤقت والرمية والدر�
     const moves = legalMoves(state, 6);
     expect(moves.length).toBeGreaterThan(0);
     const moved = applyMove(state, moves[0]!);
-    const tokensOnBoard = moved.tokens.filter((t) => t.pos >= 0).length;
+    const tokensOnBoard = moved.tokens.filter((t) => t.offset >= 0).length;
 
     const afterTimeout = forfeitTurn(moved);
-    expect(afterTimeout.tokens.filter((t) => t.pos >= 0).length).toBe(tokensOnBoard);
+    expect(afterTimeout.tokens.filter((t) => t.offset >= 0).length).toBe(tokensOnBoard);
   });
 
   it("إرسال رسائل الدردشة لا يغيّر حالة اللعبة إطلاقًا", () => {
