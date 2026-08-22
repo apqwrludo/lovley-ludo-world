@@ -205,3 +205,13 @@
 
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; } }
 
+
+/* إيقاف الاحتفالات والحركات الزخرفية دون تعطيل اللعب */
+.no-anim .confetti,
+.no-anim .stars {
+  display: none;
+}
+.no-anim .celebrate-pop,
+.no-anim .glow-rise {
+  animation: none !important;
+}
