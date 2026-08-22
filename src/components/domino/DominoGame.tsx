@@ -255,7 +255,11 @@ export function DominoGame({
           ))}
         </div>
 
-        <section className="domino-arena my-2" ref={railRef}>
+        <section
+          className="domino-arena my-2"
+          ref={railRef}
+          style={{ minHeight: `${Math.min(58, 40 + state.board.length * 0.7)}vh` }}
+        >
           {state.board.length === 0 ? (
             <p className="text-center text-sm text-ludo-soft">
               ابدأ بوضع أي حجرة في منتصف الساحة
