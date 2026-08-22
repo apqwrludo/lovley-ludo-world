@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { CalendarClock, CheckCircle2, Coins, Gem, Loader2, Sparkles, Target } from "lucide-react";
+import { CalendarClock, CheckCircle2, Loader2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { claimMission, fetchMissions, type Mission } from "@/lib/economy.functions";
 import { sfx } from "@/lib/audio";
 import { cn } from "@/lib/utils";
+import { ART } from "./economy-visuals";
 
 const REASONS: Record<string, string> = {
   not_claimable: "المهمة غير مكتملة أو تم استلامها مسبقًا",
@@ -74,7 +75,7 @@ export function MissionsPanel({
 
   if (!signedIn) {
     return (
-      <p className="rounded-xl border border-ludo-gold/35 bg-ludo-panel/70 p-5 text-center text-sm text-ludo-soft">
+      <p className="glossy-card text-center text-sm text-ludo-soft">
         سجّل الدخول لتتبّع مهامك اليومية والأسبوعية واستلام مكافآتها.
       </p>
     );
@@ -96,9 +97,7 @@ export function MissionsPanel({
   return (
     <div className="space-y-4">
       {note && (
-        <p className="rounded-lg border border-ludo-gold/50 bg-ludo-purple/50 p-2 text-center text-xs text-ludo-gold">
-          {note}
-        </p>
+        <p className="ledger-row justify-center text-center text-xs text-ludo-gold">{note}</p>
       )}
       {groups.map(([title, period, hint]) => {
         const items = missions.filter((m) => m.period === period);
@@ -106,8 +105,15 @@ export function MissionsPanel({
         return (
           <section key={period}>
             <header className="mb-2 flex items-center justify-between gap-2">
-              <h3 className="flex items-center gap-2 font-bold text-ludo-gold">
-                {period === "daily" ? <Target className="size-5" /> : <Sparkles className="size-5" />}
+              <h3 className="flex items-center gap-2 font-display font-black text-ludo-gold">
+                <img
+                  src={period === "daily" ? ART.mission : ART.gift}
+                  alt=""
+                  width={512}
+                  height={512}
+                  loading="lazy"
+                  className="asset-shine size-8"
+                />
                 {title}
               </h3>
               <small className="flex items-center gap-1 text-ludo-soft">
@@ -121,35 +127,35 @@ export function MissionsPanel({
                 return (
                   <article
                     key={m.code}
-                    className={cn(
-                      "rounded-xl border border-ludo-gold/35 bg-ludo-panel/70 p-3",
-                      m.claimed && "opacity-70",
-                    )}
+                    className={cn("mission-card", m.claimed && "mission-card-claimed")}
                   >
-                    <div className="flex items-start justify-between gap-2">
+                    <div className="relative flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <b className="block text-sm text-ludo-gold">{m.title}</b>
                         <small className="text-ludo-soft">{m.description}</small>
                       </div>
                       <div className="flex shrink-0 items-center gap-2 text-xs">
-                        <span className="flex items-center gap-1 text-ludo-gold">
-                          <Coins className="size-4" /> {m.reward_gold}
+                        <span className="ledger-amount text-ludo-gold">
+                          <img src={ART.gold} alt="" width={512} height={512} loading="lazy" className="size-4" />
+                          {m.reward_gold}
                         </span>
                         {m.reward_diamonds > 0 && (
-                          <span className="flex items-center gap-1 text-ludo-lagoon">
-                            <Gem className="size-4" /> {m.reward_diamonds}
+                          <span className="ledger-amount text-ludo-lagoon">
+                            <img src={ART.diamonds} alt="" width={512} height={512} loading="lazy" className="size-4" />
+                            {m.reward_diamonds}
                           </span>
                         )}
-                        <span className="text-ludo-pink">+{m.reward_xp} XP</span>
+                        <span className="ledger-amount text-ludo-pink">+{m.reward_xp} XP</span>
                       </div>
                     </div>
 
-                    <div className="mt-3 flex items-center gap-3">
-                      <div className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-ludo-deep">
+                    <div className="relative mt-3 flex items-center gap-3">
+                      <div className="mission-track min-w-0 flex-1">
                         <span
-                          className="block h-full rounded-full bg-gradient-to-l from-ludo-gold to-ludo-pink transition-[width] duration-500"
+                          className={cn("mission-fill", pct >= 100 && "mission-fill-done")}
                           style={{ width: `${pct}%` }}
                         />
+                        <b>{pct}%</b>
                       </div>
                       <small className="shrink-0 tabular-nums text-ludo-soft">
                         {m.progress}/{m.goal}
