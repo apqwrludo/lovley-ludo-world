@@ -619,12 +619,12 @@ function TopBar({ muted, onMute, onMenu, onAccount }: { muted: boolean; onMute: 
         </button>
         <div className="min-w-0">
           <div className="flex items-center justify-end gap-2">
-            <button type="button" onClick={onAccount} className="hud-pill" aria-label="الذهب">
+            <button type="button" onClick={onAccount} className="hud-pill press-3d reflect-gloss" aria-label="الذهب">
               <img src={coinStack} alt="" width={512} height={512} loading="lazy" />
               <b>{user ? profile?.gold ?? 0 : 0}</b>
               <span className="hud-plus">+</span>
             </button>
-            <button type="button" onClick={onAccount} className="hud-pill" aria-label="الجواهر">
+            <button type="button" onClick={onAccount} className="hud-pill press-3d reflect-gloss" aria-label="الجواهر">
               <img src={gemEmerald} alt="" width={512} height={512} loading="lazy" />
               <b>{user ? profile?.diamonds ?? 0 : 0}</b>
               <span className="hud-plus">+</span>
@@ -636,7 +636,7 @@ function TopBar({ muted, onMute, onMenu, onAccount }: { muted: boolean; onMute: 
           </div>
         </div>
         <div className="grid gap-1">
-          <Button variant="neonIcon" size="icon" aria-label="القائمة" onClick={onMenu}><Menu /></Button>
+          <Button variant="neonIcon" size="icon" className="press-3d" aria-label="القائمة" onClick={onMenu}><Menu /></Button>
           <Button variant="neonIcon" size="icon" aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"} onClick={onMute}>
             {muted ? <VolumeX /> : <Volume2 />}
           </Button>
@@ -660,7 +660,7 @@ function Brand() {
 function HomeScreen({ navigate, quickPlay, dominoPlay }: { navigate: (s: Screen) => void; quickPlay: () => void; dominoPlay: () => void }) {
   return (
     <main className="mt-3 space-y-4 pb-24">
-      <h2 className="ribbon-title">اختر نمط اللعب</h2>
+      <h2 className="ribbon-title reflect-gloss">اختر نمط اللعب</h2>
 
       <div className="grid grid-cols-2 gap-3">
         <ModeCard tone="green" img={mode2p} title="لعب سريع" subtitle="ضد الروبوت" onClick={quickPlay} />
@@ -684,7 +684,7 @@ function HomeScreen({ navigate, quickPlay, dominoPlay }: { navigate: (s: Screen)
         </div>
       </section>
 
-      <button className="glossy-card flex w-full items-center gap-3 text-right" type="button" onClick={() => navigate("chests")}>
+      <button className="glossy-card press-3d reflect-gloss flex w-full items-center gap-3 text-right" type="button" onClick={() => navigate("chests")}>
         <img src={giftBox} alt="" width={512} height={512} loading="lazy" className="asset-shine relative size-16 shrink-0" />
         <span className="relative min-w-0 flex-1">
           <b className="block text-lg text-ludo-gold">هدية اليوم جاهزة!</b>
@@ -698,7 +698,7 @@ function HomeScreen({ navigate, quickPlay, dominoPlay }: { navigate: (s: Screen)
 
 function ModeCard({ tone, img, title, subtitle, onClick }: { tone: string; img: string; title: string; subtitle: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className={cn("mode-tile", `tile-${tone}`)}>
+    <button type="button" onClick={onClick} className={cn("mode-tile press-3d reflect-gloss", `tile-${tone}`)}>
       <img src={img} alt="" width={512} height={512} loading="lazy" />
       <b>{title}</b>
       <small>{subtitle}</small>
@@ -708,7 +708,7 @@ function ModeCard({ tone, img, title, subtitle, onClick }: { tone: string; img: 
 
 function SmallTile({ img, label, onClick }: { img: string; label: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="relative grid place-items-center gap-1 rounded-xl border border-white/15 bg-black/25 p-2 transition active:translate-y-0.5">
+    <button type="button" onClick={onClick} className="press-3d reflect-gloss relative grid place-items-center gap-1 rounded-xl border border-ludo-gold/25 bg-black/30 p-2 shadow-[inset_0_1px_0_rgb(255_255_255/.18),0_4px_0_#2c0722,0_8px_16px_rgb(0_0_0/.45)]">
       <img src={img} alt="" width={512} height={512} loading="lazy" className="asset-shine size-10" />
       <small className="text-[10px] font-bold text-ludo-soft">{label}</small>
     </button>
@@ -762,7 +762,7 @@ function BottomNav({ active, navigate }: { active: Screen; navigate: (s: Screen)
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid w-full max-w-md grid-cols-5 gap-1 border-t-2 border-ludo-gold/70 bg-[linear-gradient(180deg,#4a0d33,#170512)] px-2 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_24px_rgb(0_0_0/.55)]">
       {links.map(([id, icon, label]) => (
-        <button type="button" key={id} onClick={() => navigate(id)} className={cn("nav-3d", active === id && "nav-3d-active")}>
+        <button type="button" key={id} onClick={() => navigate(id)} className={cn("nav-3d press-3d", active === id && "nav-3d-active")}>
           <img src={icon} alt="" width={512} height={512} loading="lazy" />
           <span>{label}</span>
         </button>
