@@ -19,7 +19,7 @@ function buzz(pattern: number | number[]) {
   const vib = (navigator as Navigator & { vibrate?: (p: number | number[]) => boolean }).vibrate;
   if (typeof vib !== "function") return;
   try {
-    vib.call(navigator, pattern);
+    vib.call(navigator, pattern as never);
   } catch {
     /* الجهاز لا يدعم الاهتزاز */
   }
