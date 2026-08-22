@@ -123,3 +123,28 @@ export function chainScale(layout: ChainLayout, viewWidth: number, viewHeight: n
   const sy = viewHeight / Math.max(1, layout.height);
   return Math.max(0.45, Math.min(1, sx, sy));
 }
+
+/**
+ * تحقّق من صحة التشكيل: تطابق أطراف الحجارة المتجاورة وعدم تداخل أي حجرين.
+ * تُستخدم لتشغيل المؤثرات الصوتية فقط عندما يكون الترتيب صحيحًا بصريًا ومنطقيًا.
+ */
+export function isChainLayoutValid(layout: ChainLayout): boolean {
+  const { items } = layout;
+  for (let i = 1; i < items.length; i += 1) {
+    const prev = items[i - 1]!;
+    const cur = items[i]!;
+    if (prev.right !== cur.left) return false;
+  }
+  for (let i = 0; i < items.length; i += 1) {
+    const a = items[i]!;
+    for (let j = i + 1; j < items.length; j += 1) {
+      const b = items[j]!;
+      const overlapX =
+        Math.abs(a.x - b.x) < (tileW(a.double) + tileW(b.double)) / 2 - 0.5;
+      const overlapY =
+        Math.abs(a.y - b.y) < (tileHeight(a.double) + tileHeight(b.double)) / 2 - 0.5;
+      if (overlapX && overlapY) return false;
+    }
+  }
+  return true;
+}
