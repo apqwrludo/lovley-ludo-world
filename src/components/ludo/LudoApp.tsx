@@ -771,20 +771,24 @@ function BottomNav({ active, navigate }: { active: Screen; navigate: (s: Screen)
   );
 }
 
-function GameScreen({ state, moves, rolling, muted, celebrate, events, onMute, onRoll, onToken, onHome, onRules, onRestart }: { state: GameState; moves: ReturnType<typeof legalMoves>; rolling: boolean; muted: boolean; celebrate: boolean; events: MatchEvent[]; onMute: () => void; onRoll: () => void; onToken: (id: string) => void; onHome: () => void; onRules: () => void; onRestart: () => void }) {
+function GameScreen({ state, moves, rolling, muted, celebrate, events, verified, remaining, timerActive, serverSynced, meName, onMute, onRoll, onToken, onHome, onRules, onRestart }: { state: GameState; moves: ReturnType<typeof legalMoves>; rolling: boolean; muted: boolean; celebrate: boolean; events: MatchEvent[]; verified: boolean; remaining: number; timerActive: boolean; serverSynced: boolean; meName: string; onMute: () => void; onRoll: () => void; onToken: (id: string) => void; onHome: () => void; onRules: () => void; onRestart: () => void }) {
   const player = currentPlayer(state);
   const seat = SEATS[player.seat];
   return <div className="ludo-shell min-h-screen" dir="rtl"><Starfield /><div className="crown-pattern fixed inset-0" aria-hidden="true" /><main className="relative mx-auto flex min-h-screen w-full max-w-xl flex-col px-2 pb-4 pt-2">
-    <header className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2"><Button variant="neonIcon" size="icon" aria-label="الرئيسية" onClick={onHome}><Home /></Button><Button variant="neonIcon" size="icon" aria-label="القواعد" onClick={onRules}><BookOpen /></Button><Brand /><Button variant="neonIcon" size="icon" aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"} onClick={onMute}>{muted ? <VolumeX /> : <Volume2 />}</Button></header>
+    <header className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2"><Button variant="neonIcon" size="icon" className="press-3d" aria-label="الرئيسية" onClick={onHome}><Home /></Button><Button variant="neonIcon" size="icon" className="press-3d" aria-label="القواعد" onClick={onRules}><BookOpen /></Button><Brand /><Button variant="neonIcon" size="icon" className="press-3d" aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"} onClick={onMute}>{muted ? <VolumeX /> : <Volume2 />}</Button></header>
     <div className="mt-2 grid grid-cols-2 gap-2">{state.players.slice(0, 2).map((p) => <PlayerPlate key={p.seat} state={state} seatId={p.seat} />)}</div>
-    <section className="board-wood relative mx-auto my-2 w-full max-w-[min(92vw,34rem)]"><LudoBoard state={state} moves={moves} onTokenClick={onToken} /></section>
+    <section className="board-wood reflect-gloss relative mx-auto my-2 w-full max-w-[min(92vw,34rem)]"><LudoBoard state={state} moves={moves} onTokenClick={onToken} /></section>
     <div className="grid grid-cols-2 gap-2">{state.players.slice(2).map((p) => <PlayerPlate key={p.seat} state={state} seatId={p.seat} />)}</div>
-    <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 pt-4"><div className="min-w-0 text-center"><p className="truncate text-sm font-bold text-ludo-gold">{state.message}</p><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ludo-panel"><span className={cn("block h-full w-1/2", colorBg[seat.token])} /></div></div><Dice value={state.dice} rolling={rolling} disabled={state.phase !== "roll" || player.isBot} onRoll={onRoll} seatToken={seat.token} /></div>
+    {timerActive && state.phase !== "over" && (
+      <div className="mt-2 flex justify-center"><TurnTimer remaining={remaining} limit={15} name={player.name} serverSynced={serverSynced} /></div>
+    )}
+    <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 pt-4"><div className="min-w-0 text-center"><p className="truncate text-sm font-bold text-ludo-gold">{state.message}</p><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ludo-panel"><span className={cn("block h-full w-1/2", colorBg[seat.token])} /></div></div><Dice value={state.dice} rolling={rolling} disabled={state.phase !== "roll" || player.isBot} onRoll={onRoll} seatToken={seat.token} verified={verified} /></div>
     {state.phase === "over" && (
       <MatchSummary winnerName={player.name} events={events} onRestart={onRestart} onHome={onHome} />
     )}
-  </main>{celebrate && <Confetti />}</div>;
+  </main><MatchChat meName={meName} />{celebrate && <Confetti />}</div>;
 }
+
 
 function PlayerPlate({ state, seatId }: { state: GameState; seatId: 0 | 1 | 2 | 3 }) {
   const p = state.players.find((x) => x.seat === seatId);
