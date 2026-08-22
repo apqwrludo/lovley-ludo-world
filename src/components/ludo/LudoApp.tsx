@@ -1,25 +1,32 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  BookOpen,
   Bot,
   ChevronLeft,
   Crown,
   Gift,
   Home,
+  ListOrdered,
   Medal,
   Menu,
   Plus,
   Settings,
-  ShieldCheck,
   Sparkles,
   Trophy,
+  UserCircle2,
   Users,
   Volume2,
   VolumeX,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dice } from "./Dice";
 import { LudoBoard } from "./LudoBoard";
+import { RulesContent } from "./RulesScreen";
+import { Leaderboard } from "./LeaderboardScreen";
+import { AuthPanel } from "./AuthScreen";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { initAudio, loadMuted, setMuted as persistMuted, sfx } from "@/lib/audio";
+import { supabase } from "@/integrations/supabase/client";
 import {
   applyMove,
   applyRoll,
@@ -34,7 +41,16 @@ import {
 import { SEATS } from "@/lib/ludo/board";
 import { cn } from "@/lib/utils";
 
-type Screen = "home" | "setup" | "rooms" | "rewards" | "tournaments" | "game";
+type Screen =
+  | "home"
+  | "setup"
+  | "rooms"
+  | "rewards"
+  | "tournaments"
+  | "rules"
+  | "leaderboard"
+  | "account"
+  | "game";
 
 const colorBg: Record<string, string> = {
   ruby: "bg-ludo-ruby",
@@ -44,60 +60,131 @@ const colorBg: Record<string, string> = {
 };
 
 export function LudoApp() {
+  return (
+    <AuthProvider>
+      <LudoShell />
+    </AuthProvider>
+  );
+}
+
+function LudoShell() {
+  const { user, refreshProfile } = useAuth();
   const [screen, setScreen] = useState<Screen>("home");
   const [playerCount, setPlayerCount] = useState<2 | 3 | 4>(4);
   const [humanCount, setHumanCount] = useState(1);
   const [game, setGame] = useState<GameState>(() => createGame(4, 1));
   const [rolling, setRolling] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
+  const savedFor = useRef<string | null>(null);
+
+  useEffect(() => setMuted(loadMuted()), []);
+
+  const toggleMute = () => {
+    setMuted((prev) => {
+      const next = !prev;
+      persistMuted(next);
+      if (!next) sfx.tap();
+      return next;
+    });
+  };
 
   const moves = useMemo(
     () => (game.phase === "move" && game.dice ? legalMoves(game, game.dice) : []),
     [game],
   );
   const player = currentPlayer(game);
-  const seat = SEATS[player.seat];
+
+  const navigate = useCallback((next: Screen) => {
+    initAudio();
+    sfx.tap();
+    setScreen(next);
+  }, []);
 
   const startGame = () => {
+    initAudio();
     setGame(createGame(playerCount, Math.min(humanCount, playerCount)));
+    savedFor.current = null;
+    setCelebrate(true);
+    sfx.start();
     setScreen("game");
+    window.setTimeout(() => setCelebrate(false), 1600);
   };
 
   const handleRoll = () => {
     if (rolling || game.phase !== "roll") return;
+    initAudio();
     setRolling(true);
+    sfx.diceRoll();
     window.setTimeout(() => {
-      setGame((g) => applyRoll(g, rollDie()));
+      const value = rollDie();
+      setGame((g) => applyRoll(g, value));
+      sfx.diceLand(value);
       setRolling(false);
-    }, 560);
+    }, 620);
   };
+
+  const commitMove = useCallback((state: GameState, move: ReturnType<typeof legalMoves>[number]) => {
+    if (move.captures.length) sfx.capture();
+    else if (move.finishes) sfx.home();
+    else sfx.move();
+    return applyMove(state, move);
+  }, []);
 
   const handleToken = (id: string) => {
     const move = moves.find((item) => item.tokenId === id);
-    if (move) setGame((g) => applyMove(g, move));
+    if (move) setGame((g) => commitMove(g, move));
   };
 
+  // نوبة الروبوت
   useEffect(() => {
     if (screen !== "game" || game.phase === "over" || !player.isBot || rolling) return;
     const timer = window.setTimeout(() => {
       if (game.phase === "roll") {
         setRolling(true);
+        sfx.diceRoll();
         window.setTimeout(() => {
-          setGame((g) => applyRoll(g, rollDie()));
+          const value = rollDie();
+          setGame((g) => applyRoll(g, value));
+          sfx.diceLand(value);
           setRolling(false);
-        }, 520);
+        }, 560);
       } else if (moves.length) {
-        setGame((g) => applyMove(g, pickBotMove(moves)));
+        setGame((g) => commitMove(g, pickBotMove(moves)));
       }
     }, 720);
     return () => window.clearTimeout(timer);
-  }, [screen, game.phase, game.turn, game.dice, game.winner, player.isBot, rolling, moves]);
+  }, [screen, game.phase, game.turn, game.dice, game.winner, player.isBot, rolling, moves, commitMove]);
 
+  // حركة وحيدة تُنفّذ تلقائيًا
   useEffect(() => {
     if (game.phase !== "move" || player.isBot || moves.length !== 1) return;
-    const timer = window.setTimeout(() => setGame((g) => applyMove(g, moves[0])), 420);
+    const only = moves[0];
+    if (!only) return;
+    const timer = window.setTimeout(() => setGame((g) => commitMove(g, only)), 420);
     return () => window.clearTimeout(timer);
-  }, [game.phase, game.turn, game.dice, player.isBot, moves]);
+  }, [game.phase, game.turn, game.dice, player.isBot, moves, commitMove]);
+
+  // احتفال + حفظ النتيجة
+  useEffect(() => {
+    if (game.phase !== "over" || game.winner === null) return;
+    sfx.win();
+    setCelebrate(true);
+    const timer = window.setTimeout(() => setCelebrate(false), 4200);
+
+    const key = `${game.winner}-${game.players.length}-${game.tokens.length}`;
+    const mySeat = game.players.find((p) => !p.isBot)?.seat;
+    if (user && mySeat !== undefined && savedFor.current !== key) {
+      savedFor.current = key;
+      void supabase
+        .rpc("record_game_result", {
+          _result: game.winner === mySeat ? "win" : "loss",
+          _players: game.players.length,
+        })
+        .then(() => refreshProfile());
+    }
+    return () => window.clearTimeout(timer);
+  }, [game.phase, game.winner, game.players, game.tokens.length, user, refreshProfile]);
 
   if (screen === "game") {
     return (
@@ -106,10 +193,12 @@ export function LudoApp() {
         moves={moves}
         rolling={rolling}
         muted={muted}
-        onMute={() => setMuted((v) => !v)}
+        celebrate={celebrate}
+        onMute={toggleMute}
         onRoll={handleRoll}
         onToken={handleToken}
-        onHome={() => setScreen("home")}
+        onHome={() => navigate("home")}
+        onRules={() => navigate("rules")}
         onRestart={startGame}
       />
     );
@@ -119,8 +208,8 @@ export function LudoApp() {
     <div className="ludo-shell min-h-screen" dir="rtl">
       <Starfield />
       <div className="relative mx-auto min-h-screen w-full max-w-md px-3 pb-24 pt-3 sm:pt-5">
-        <TopBar onMenu={() => setScreen("home")} />
-        {screen === "home" && <HomeScreen navigate={setScreen} quickPlay={startGame} />}
+        <TopBar muted={muted} onMute={toggleMute} onMenu={() => navigate("home")} onAccount={() => navigate("account")} />
+        {screen === "home" && <HomeScreen navigate={navigate} quickPlay={startGame} />}
         {screen === "setup" && (
           <SetupScreen
             players={playerCount}
@@ -128,24 +217,48 @@ export function LudoApp() {
             setPlayers={setPlayerCount}
             setHumans={setHumanCount}
             onStart={startGame}
-            onBack={() => setScreen("home")}
+            onBack={() => navigate("home")}
           />
         )}
-        {screen === "rooms" && <RoomsScreen onBack={() => setScreen("home")} onPlay={startGame} />}
-        {screen === "rewards" && <RewardsScreen onBack={() => setScreen("home")} />}
-        {screen === "tournaments" && <TournamentsScreen onBack={() => setScreen("home")} />}
-        <BottomNav active={screen} navigate={setScreen} />
+        {screen === "rooms" && <RoomsScreen onBack={() => navigate("home")} onPlay={startGame} />}
+        {screen === "rewards" && <RewardsScreen onBack={() => navigate("home")} />}
+        {screen === "tournaments" && <TournamentsScreen onBack={() => navigate("home")} />}
+        {screen === "rules" && (
+          <PanelPage title="قواعد اللعبة" icon={<BookOpen />} onBack={() => navigate("home")}>
+            <RulesContent />
+          </PanelPage>
+        )}
+        {screen === "leaderboard" && (
+          <PanelPage title="لوحة المتصدرين" icon={<ListOrdered />} onBack={() => navigate("home")}>
+            <Leaderboard meId={user?.id} />
+          </PanelPage>
+        )}
+        {screen === "account" && (
+          <PanelPage title="حسابي" icon={<UserCircle2 />} onBack={() => navigate("home")}>
+            <AuthPanel />
+          </PanelPage>
+        )}
+        <BottomNav active={screen} navigate={navigate} />
       </div>
+      {celebrate && <Confetti />}
     </div>
   );
 }
 
-function TopBar({ onMenu }: { onMenu: () => void }) {
+function TopBar({ muted, onMute, onMenu, onAccount }: { muted: boolean; onMute: () => void; onMenu: () => void; onAccount: () => void }) {
+  const { profile, user } = useAuth();
   return (
-    <header className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+    <header className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2">
       <Button variant="neonIcon" size="icon" aria-label="القائمة" onClick={onMenu}><Menu /></Button>
+      <Button variant="neonIcon" size="icon" aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"} onClick={onMute}>
+        {muted ? <VolumeX /> : <Volume2 />}
+      </Button>
       <Brand />
-      <div className="coin-pill"><span>🪙</span><b>892</b><Plus className="size-4" /></div>
+      <button type="button" onClick={onAccount} className="coin-pill" aria-label="حسابي">
+        <span>{user ? profile?.avatar ?? "👑" : "🪙"}</span>
+        <b>{user ? profile?.points ?? 0 : "دخول"}</b>
+        {!user && <Plus className="size-4" />}
+      </button>
     </header>
   );
 }
@@ -163,23 +276,26 @@ function Brand() {
 function HomeScreen({ navigate, quickPlay }: { navigate: (s: Screen) => void; quickPlay: () => void }) {
   return (
     <main className="mt-4 space-y-4">
-      <section className="royal-panel relative overflow-hidden p-5 text-center">
+      <section className="royal-panel glow-rise relative overflow-hidden p-5 text-center">
+        <div className="crown-pattern" aria-hidden="true" />
         <div className="absolute inset-x-8 top-4 h-28 rounded-full bg-ludo-pink/15 blur-3xl" />
         <div className="relative mx-auto mb-2 grid size-32 place-items-center">
           <div className="absolute inset-2 rotate-45 rounded-3xl border-2 border-ludo-gold/70 bg-ludo-purple shadow-[0_0_24px_var(--ludo-pink)]" />
-          <Crown className="relative size-20 text-ludo-gold" fill="currentColor" />
+          <Crown className="celebrate-pop relative size-20 text-ludo-gold" fill="currentColor" />
           <Sparkles className="absolute left-0 top-2 size-7 text-ludo-pink" />
           <Sparkles className="absolute bottom-2 right-0 size-6 text-ludo-gold" />
         </div>
         <h2 className="title-ribbon">مملكة الحظ تبدأ هنا</h2>
-        <p className="mt-3 text-sm text-ludo-soft">اجمع أصدقاءك، حرّك نجومك، وكن أول من يصل إلى العرش</p>
+        <p className="mt-3 text-sm text-ludo-soft">اجمع أصدقاءك، حرّك تيجانك، وكن أول من يصل إلى العرش</p>
       </section>
 
       <div className="grid grid-cols-2 gap-3">
         <ModeCard color="palm" icon={<Bot />} title="لعب سريع" subtitle="ضد الروبوت" onClick={quickPlay} />
         <ModeCard color="amber" icon={<Users />} title="لعب محلي" subtitle="2 – 4 لاعبين" onClick={() => navigate("setup")} />
-        <ModeCard color="ruby" icon={<Trophy />} title="البطولات" subtitle="جوائز ملكية" onClick={() => navigate("tournaments")} />
-        <ModeCard color="lagoon" icon={<Medal />} title="الغرف" subtitle="تحديات قادمة" onClick={() => navigate("rooms")} />
+        <ModeCard color="ruby" icon={<ListOrdered />} title="المتصدرون" subtitle="ترتيب اللاعبين" onClick={() => navigate("leaderboard")} />
+        <ModeCard color="lagoon" icon={<BookOpen />} title="القواعد" subtitle="تعلّم بسرعة" onClick={() => navigate("rules")} />
+        <ModeCard color="amber" icon={<Trophy />} title="البطولات" subtitle="جوائز ملكية" onClick={() => navigate("tournaments")} />
+        <ModeCard color="palm" icon={<UserCircle2 />} title="حسابي" subtitle="إحصائياتك" onClick={() => navigate("account")} />
       </div>
 
       <button className="reward-banner" type="button" onClick={() => navigate("rewards")}>
@@ -193,7 +309,7 @@ function HomeScreen({ navigate, quickPlay }: { navigate: (s: Screen) => void; qu
 
 function ModeCard({ color, icon, title, subtitle, onClick }: { color: string; icon: React.ReactNode; title: string; subtitle: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="game-tile group" style={{ "--tile": `var(--ludo-${color})` } as React.CSSProperties}>
+    <button type="button" onClick={onClick} className="game-tile group" style={{ ["--tile" as string]: `var(--ludo-${color})` }}>
       <span className="game-tile-icon">{icon}</span><b>{title}</b><small>{subtitle}</small>
     </button>
   );
@@ -204,10 +320,10 @@ function SetupScreen({ players, humans, setPlayers, setHumans, onStart, onBack }
     <PanelPage title="تجهيز الطاولة" icon={<Users />} onBack={onBack}>
       <p className="mb-3 text-center text-sm text-ludo-soft">اختر عدد المشاركين واللاعبين الحقيقيين</p>
       <SettingBlock title="عدد اللاعبين">
-        <div className="grid grid-cols-3 gap-2">{([2,3,4] as const).map((n) => <Button key={n} variant={players === n ? "royal" : "neon"} onClick={() => { setPlayers(n); setHumans(Math.min(humans,n)); }}>{n} لاعبين</Button>)}</div>
+        <div className="grid grid-cols-3 gap-2">{([2, 3, 4] as const).map((n) => <Button key={n} variant={players === n ? "royal" : "neon"} onClick={() => { setPlayers(n); setHumans(Math.min(humans, n)); }}>{n} لاعبين</Button>)}</div>
       </SettingBlock>
       <SettingBlock title="اللاعبون المحليون">
-        <div className="grid grid-cols-4 gap-2">{[1,2,3,4].filter(n => n <= players).map((n) => <Button key={n} variant={humans === n ? "royal" : "neon"} onClick={() => setHumans(n)}>{n}</Button>)}</div>
+        <div className="grid grid-cols-4 gap-2">{[1, 2, 3, 4].filter((n) => n <= players).map((n) => <Button key={n} variant={humans === n ? "royal" : "neon"} onClick={() => setHumans(n)}>{n}</Button>)}</div>
         <p className="mt-3 text-xs text-ludo-soft">سيكمل الروبوت المقاعد المتبقية تلقائيًا</p>
       </SettingBlock>
       <Button variant="play" size="xl" className="mt-5 w-full" onClick={onStart}>ابدأ اللعبة <Crown /></Button>
@@ -217,41 +333,73 @@ function SetupScreen({ players, humans, setPlayers, setHumans, onStart, onBack }
 
 function RoomsScreen({ onBack, onPlay }: { onBack: () => void; onPlay: () => void }) {
   const rooms = ["غرفة المرح", "أصدقاء عبقور", "تحدّي الأبطال", "شوق اللعبة"];
-  return <PanelPage title="الغرف المتاحة" icon={<Users />} onBack={onBack}><div className="space-y-2">{rooms.map((name,i) => <div className="list-card" key={name}><span className="avatar-orb">{i+1}</span><span className="min-w-0 flex-1"><b className="block truncate">{name}</b><small className="text-ludo-soft">{i%2 ? "2 / 4" : "3 / 4"} لاعبين</small></span><Button variant="play" size="sm" onClick={onPlay}>انضم</Button></div>)}</div><Button variant="royal" className="mt-4 w-full"><Plus /> إنشاء غرفة</Button></PanelPage>;
+  return <PanelPage title="الغرف المتاحة" icon={<Users />} onBack={onBack}><div className="space-y-2">{rooms.map((name, i) => <div className="list-card" key={name}><span className="avatar-orb bg-ludo-purple text-ludo-gold">{i + 1}</span><span className="min-w-0 flex-1"><b className="block truncate">{name}</b><small className="text-ludo-soft">{i % 2 ? "2 / 4" : "3 / 4"} لاعبين</small></span><Button variant="play" size="sm" onClick={onPlay}>انضم</Button></div>)}</div><Button variant="royal" className="mt-4 w-full"><Plus /> إنشاء غرفة</Button></PanelPage>;
 }
 
 function RewardsScreen({ onBack }: { onBack: () => void }) {
-  const items = [["🪙","1000 عملة"],["🎁","صندوق ملكي"],["👑","تاج الملك"],["💎","100 جوهرة"]];
-  return <PanelPage title="المكافآت" icon={<Gift />} onBack={onBack}><div className="reward-hero"><Gift className="size-20 text-ludo-gold"/><b>هدية يومية مميزة</b><span>عد غدًا لمفاجأة جديدة</span></div><div className="mt-3 grid grid-cols-2 gap-3">{items.map(([icon,name],i) => <div className="reward-card" key={name}><span className="text-5xl">{icon}</span><b>{name}</b><Button variant={i===0 ? "play" : "neon"} size="sm">{i===0 ? "استلم" : "قريبًا"}</Button></div>)}</div></PanelPage>;
+  const items = [["🪙", "1000 عملة"], ["🎁", "صندوق ملكي"], ["👑", "تاج الملك"], ["💎", "100 جوهرة"]];
+  return <PanelPage title="المكافآت" icon={<Gift />} onBack={onBack}><div className="reward-hero"><Gift className="size-20 text-ludo-gold" /><b>هدية يومية مميزة</b><span>عد غدًا لمفاجأة جديدة</span></div><div className="mt-3 grid grid-cols-2 gap-3">{items.map(([icon, name], i) => <div className="reward-card" key={name}><span className="text-5xl">{icon}</span><b>{name}</b><Button variant={i === 0 ? "play" : "neon"} size="sm">{i === 0 ? "استلم" : "قريبًا"}</Button></div>)}</div></PanelPage>;
 }
 
 function TournamentsScreen({ onBack }: { onBack: () => void }) {
-  return <PanelPage title="البطولات" icon={<Trophy />} onBack={onBack}><div className="trophy-stage"><Trophy className="size-24 text-ludo-gold" fill="currentColor"/><h3>بطولة عبقور الكبرى</h3><p>الجائزة الكبرى 20,000 عملة</p><div className="countdown"><span><b>05</b> أيام</span><span><b>12</b> ساعة</span><span><b>36</b> دقيقة</span></div></div>{["بطولة السرعة","تحدّي الأصدقاء","بطولة المحترفين"].map((x,i) => <div className="list-card mt-2" key={x}><Medal className="size-8 text-ludo-gold"/><span className="flex-1"><b className="block">{x}</b><small className="text-ludo-soft">{i+2} أيام متبقية</small></span><Button variant="neon" size="sm">التفاصيل</Button></div>)}</PanelPage>;
+  return <PanelPage title="البطولات" icon={<Trophy />} onBack={onBack}><div className="trophy-stage"><Trophy className="size-24 text-ludo-gold" fill="currentColor" /><h3>بطولة عبقور الكبرى</h3><p>الجائزة الكبرى 20,000 عملة</p><div className="countdown"><span><b>05</b> أيام</span><span><b>12</b> ساعة</span><span><b>36</b> دقيقة</span></div></div>{["بطولة السرعة", "تحدّي الأصدقاء", "بطولة المحترفين"].map((x, i) => <div className="list-card mt-2" key={x}><Medal className="size-8 text-ludo-gold" /><span className="flex-1"><b className="block">{x}</b><small className="text-ludo-soft">{i + 2} أيام متبقية</small></span><Button variant="neon" size="sm">التفاصيل</Button></div>)}</PanelPage>;
 }
 
 function PanelPage({ title, icon, onBack, children }: { title: string; icon: React.ReactNode; onBack: () => void; children: React.ReactNode }) {
-  return <main className="royal-panel mt-4 p-3"><header className="title-ribbon mb-4 grid grid-cols-[auto_1fr_auto] items-center"><Button variant="ghostGold" size="icon" onClick={onBack}><ChevronLeft className="rotate-180"/></Button><h2 className="flex items-center justify-center gap-2 text-xl">{icon}{title}</h2><span className="size-9"/></header>{children}</main>;
+  return <main className="royal-panel glow-rise mt-4 p-3"><header className="title-ribbon mb-4 grid grid-cols-[auto_1fr_auto] items-center"><Button variant="ghostGold" size="icon" onClick={onBack}><ChevronLeft className="rotate-180" /></Button><h2 className="flex items-center justify-center gap-2 text-xl">{icon}{title}</h2><span className="size-9" /></header>{children}</main>;
 }
 
 function SettingBlock({ title, children }: { title: string; children: React.ReactNode }) { return <section className="mb-3 rounded-xl border border-ludo-gold/35 bg-ludo-panel/70 p-3"><h3 className="mb-3 font-bold text-ludo-gold">{title}</h3>{children}</section>; }
 
 function BottomNav({ active, navigate }: { active: Screen; navigate: (s: Screen) => void }) {
-  const links: [Screen, React.ReactNode, string][] = [["home",<Home key="h"/>,"الرئيسية"],["rooms",<Users key="u"/>,"الغرف"],["tournaments",<Trophy key="t"/>,"البطولات"],["rewards",<Gift key="g"/>,"الهدايا"],["setup",<Settings key="s"/>,"اللعب"]];
-  return <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid w-full max-w-md grid-cols-5 border-t border-ludo-gold/60 bg-ludo-deep/95 px-2 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl">{links.map(([id,icon,label]) => <button type="button" key={id} onClick={() => navigate(id)} className={cn("grid place-items-center gap-0.5 text-[10px] text-ludo-soft",active===id&&"text-ludo-gold")}>{icon}<span>{label}</span></button>)}</nav>;
+  const links: [Screen, React.ReactNode, string][] = [
+    ["home", <Home key="h" />, "الرئيسية"],
+    ["leaderboard", <ListOrdered key="l" />, "المتصدرون"],
+    ["rules", <BookOpen key="b" />, "القواعد"],
+    ["account", <UserCircle2 key="a" />, "حسابي"],
+    ["setup", <Settings key="s" />, "اللعب"],
+  ];
+  return <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid w-full max-w-md grid-cols-5 border-t border-ludo-gold/60 bg-ludo-deep/95 px-2 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl">{links.map(([id, icon, label]) => <button type="button" key={id} onClick={() => navigate(id)} className={cn("grid place-items-center gap-0.5 text-[10px] text-ludo-soft", active === id && "text-ludo-gold")}>{icon}<span>{label}</span></button>)}</nav>;
 }
 
-function GameScreen({ state, moves, rolling, muted, onMute, onRoll, onToken, onHome, onRestart }: { state: GameState; moves: ReturnType<typeof legalMoves>; rolling: boolean; muted: boolean; onMute: () => void; onRoll: () => void; onToken: (id:string) => void; onHome: () => void; onRestart: () => void }) {
-  const player = currentPlayer(state); const seat = SEATS[player.seat];
-  return <div className="ludo-shell min-h-screen" dir="rtl"><Starfield/><main className="relative mx-auto flex min-h-screen w-full max-w-xl flex-col px-2 pb-4 pt-2">
-    <header className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2"><Button variant="neonIcon" size="icon" onClick={onHome}><Home/></Button><Brand/><div className="coin-pill"><span>🪙</span><b>892</b></div></header>
-    <div className="mt-2 grid grid-cols-2 gap-2">{state.players.slice(0,2).map(p => <PlayerPlate key={p.seat} state={state} seatId={p.seat}/>)}</div>
-    <section className="relative mx-auto my-2 w-full max-w-[min(92vw,34rem)]"><LudoBoard state={state} moves={moves} onTokenClick={onToken}/></section>
-    <div className="grid grid-cols-2 gap-2">{state.players.slice(2).map(p => <PlayerPlate key={p.seat} state={state} seatId={p.seat}/>)}</div>
-    <div className="mt-auto grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 pt-3"><Button variant="neonIcon" size="icon" onClick={onMute}>{muted?<VolumeX/>:<Volume2/>}</Button><div className="min-w-0 text-center"><p className="truncate text-sm font-bold text-ludo-gold">{state.message}</p><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ludo-panel"><span className={cn("block h-full w-1/2",colorBg[seat.token])}/></div></div><Dice value={state.dice} rolling={rolling} disabled={state.phase!=="roll"||player.isBot} onRoll={onRoll} seatToken={seat.token}/></div>
-    {state.phase==="over"&&<div className="fixed inset-0 z-50 grid place-items-center bg-ludo-deep/85 p-5 backdrop-blur-sm"><div className="royal-panel w-full max-w-sm p-6 text-center"><Crown className="mx-auto size-24 text-ludo-gold" fill="currentColor"/><h2 className="title-ribbon text-2xl">مبروك الفوز!</h2><p className="my-4 text-lg">{player.name} هو ملك الطاولة</p><Button variant="play" size="xl" className="w-full" onClick={onRestart}>لعبة جديدة</Button><Button variant="ghostGold" className="mt-2 w-full" onClick={onHome}>العودة للرئيسية</Button></div></div>}
-  </main></div>;
+function GameScreen({ state, moves, rolling, muted, celebrate, onMute, onRoll, onToken, onHome, onRules, onRestart }: { state: GameState; moves: ReturnType<typeof legalMoves>; rolling: boolean; muted: boolean; celebrate: boolean; onMute: () => void; onRoll: () => void; onToken: (id: string) => void; onHome: () => void; onRules: () => void; onRestart: () => void }) {
+  const player = currentPlayer(state);
+  const seat = SEATS[player.seat];
+  return <div className="ludo-shell min-h-screen" dir="rtl"><Starfield /><div className="crown-pattern fixed inset-0" aria-hidden="true" /><main className="relative mx-auto flex min-h-screen w-full max-w-xl flex-col px-2 pb-4 pt-2">
+    <header className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2"><Button variant="neonIcon" size="icon" aria-label="الرئيسية" onClick={onHome}><Home /></Button><Button variant="neonIcon" size="icon" aria-label="القواعد" onClick={onRules}><BookOpen /></Button><Brand /><Button variant="neonIcon" size="icon" aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"} onClick={onMute}>{muted ? <VolumeX /> : <Volume2 />}</Button></header>
+    <div className="mt-2 grid grid-cols-2 gap-2">{state.players.slice(0, 2).map((p) => <PlayerPlate key={p.seat} state={state} seatId={p.seat} />)}</div>
+    <section className="board-frame relative mx-auto my-2 w-full max-w-[min(92vw,34rem)]"><LudoBoard state={state} moves={moves} onTokenClick={onToken} /></section>
+    <div className="grid grid-cols-2 gap-2">{state.players.slice(2).map((p) => <PlayerPlate key={p.seat} state={state} seatId={p.seat} />)}</div>
+    <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 pt-4"><div className="min-w-0 text-center"><p className="truncate text-sm font-bold text-ludo-gold">{state.message}</p><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ludo-panel"><span className={cn("block h-full w-1/2", colorBg[seat.token])} /></div></div><Dice value={state.dice} rolling={rolling} disabled={state.phase !== "roll" || player.isBot} onRoll={onRoll} seatToken={seat.token} /></div>
+    {state.phase === "over" && <div className="fixed inset-0 z-[70] grid place-items-center bg-ludo-deep/85 p-5 backdrop-blur-sm"><div className="royal-panel celebrate-pop w-full max-w-sm p-6 text-center"><Crown className="mx-auto size-24 text-ludo-gold" fill="currentColor" /><h2 className="title-ribbon text-2xl">مبروك الفوز!</h2><p className="my-4 text-lg">{player.name} هو ملك الطاولة</p><Button variant="play" size="xl" className="w-full" onClick={onRestart}>لعبة جديدة</Button><Button variant="ghostGold" className="mt-2 w-full" onClick={onHome}>العودة للرئيسية</Button></div></div>}
+  </main>{celebrate && <Confetti />}</div>;
 }
 
-function PlayerPlate({ state, seatId }: { state: GameState; seatId: 0|1|2|3 }) { const p=state.players.find(x=>x.seat===seatId); if(!p)return null; const s=SEATS[seatId]; const active=currentPlayer(state).seat===seatId; return <div className={cn("player-plate",active&&"player-plate-active")} style={{"--seat":`var(--ludo-${s.token})`} as React.CSSProperties}><span className={cn("avatar-orb",colorBg[s.token])}>{p.isBot?<Bot/>:<Crown/>}</span><span className="min-w-0 flex-1"><b className="block truncate text-xs">{p.name}</b><small>{tokensDone(state,seatId)}/4 في المنزل</small></span>{active&&<span className="turn-dot"/>}</div>; }
+function PlayerPlate({ state, seatId }: { state: GameState; seatId: 0 | 1 | 2 | 3 }) {
+  const p = state.players.find((x) => x.seat === seatId);
+  if (!p) return null;
+  const s = SEATS[seatId];
+  const active = currentPlayer(state).seat === seatId;
+  return <div className={cn("player-plate", active && "player-plate-active")} style={{ ["--seat" as string]: `var(--ludo-${s.token})` }}><span className={cn("avatar-orb", colorBg[s.token])}>{p.isBot ? <Bot /> : <Crown />}</span><span className="min-w-0 flex-1"><b className="block truncate text-xs">{p.name}</b><small>{tokensDone(state, seatId)}/4 في المنزل</small></span>{active && <span className="turn-dot" />}</div>;
+}
 
-function Starfield() { return <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true"><div className="stars stars-a"/><div className="stars stars-b"/></div>; }
+function Confetti() {
+  const pieces = useMemo(
+    () => Array.from({ length: 46 }, () => ({
+      left: Math.random() * 100,
+      delay: Math.random() * 0.9,
+      duration: 2 + Math.random() * 1.6,
+      color: ["var(--ludo-gold)", "var(--ludo-pink)", "var(--ludo-palm)", "var(--ludo-lagoon)", "var(--ludo-ruby)"][Math.floor(Math.random() * 5)],
+    })),
+    [],
+  );
+  return (
+    <div className="confetti" aria-hidden="true">
+      {pieces.map((p, i) => (
+        <i key={i} style={{ left: `${p.left}%`, background: p.color, animationDelay: `${p.delay}s`, animationDuration: `${p.duration}s` }} />
+      ))}
+    </div>
+  );
+}
+
+function Starfield() { return <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true"><div className="stars stars-a" /><div className="stars stars-b" /></div>; }
