@@ -7,6 +7,27 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { sfx } from "@/lib/audio";
 
+/** ترجمة أخطاء المصادقة إلى رسائل عربية مفهومة بدون تفاصيل تقنية */
+function authMessage(raw: string, mode: "login" | "signup"): string {
+  const m = raw.toLowerCase();
+  if (m.includes("invalid login credentials") || m.includes("invalid credentials")) {
+    return "البريد أو كلمة المرور غير صحيحة";
+  }
+  if (m.includes("already registered") || m.includes("already been registered") || m.includes("user already")) {
+    return "هذا البريد مستخدم بالفعل";
+  }
+  if (m.includes("email not confirmed")) return "لم يتم تأكيد البريد بعد، تحقق من رسالة التأكيد";
+  if (m.includes("password") && (m.includes("least") || m.includes("short") || m.includes("weak"))) {
+    return "كلمة المرور قصيرة جدًا، استخدم 6 أحرف على الأقل";
+  }
+  if (m.includes("invalid email") || m.includes("email address") && m.includes("invalid")) {
+    return "صيغة البريد الإلكتروني غير صحيحة";
+  }
+  if (m.includes("rate limit") || m.includes("too many")) return "محاولات كثيرة، انتظر قليلًا ثم أعد المحاولة";
+  if (m.includes("network") || m.includes("failed to fetch")) return "تعذّر الاتصال بالخدمة، تحقق من الإنترنت";
+  return mode === "login" ? "تعذّر تسجيل الدخول، حاول مرة أخرى" : "تعذّر إنشاء الحساب، حاول مرة أخرى";
+}
+
 export function AuthPanel() {
   const { user, profile, loading, signOut, refreshProfile } = useAuth();
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -36,6 +57,11 @@ export function AuthPanel() {
           <StatBox label="خسارة" value={profile?.losses ?? 0} />
           <StatBox label="لعبات" value={profile?.games ?? 0} />
         </div>
+        {profile?.banned && (
+          <p className="rounded-lg bg-destructive/20 p-2 text-center text-xs text-destructive-foreground">
+            هذا الحساب موقوف حاليًا{profile.banned_reason ? ` — ${profile.banned_reason}` : ""}
+          </p>
+        )}
         <ProfileNameForm current={profile?.display_name ?? ""} onSaved={refreshProfile} />
         <Button variant="ghostGold" className="w-full" onClick={() => void signOut()}>
           <LogOut /> تسجيل الخروج
@@ -59,14 +85,15 @@ export function AuthPanel() {
           },
         });
         if (err) throw err;
-        setNote("تم إنشاء الحساب! تحقق من بريدك لتأكيد الحساب ثم سجّل الدخول.");
+        setNote("تم إنشاء الحساب بنجاح! جارٍ تجهيز ملفك الشخصي…");
+        sfx.start();
       } else {
         const { error: err } = await supabase.auth.signInWithPassword({ email, password });
         if (err) throw err;
         sfx.start();
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "حدث خطأ غير متوقع");
+      setError(authMessage(e instanceof Error ? e.message : "", mode));
     } finally {
       setBusy(false);
     }

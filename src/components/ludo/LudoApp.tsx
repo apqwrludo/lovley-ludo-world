@@ -16,6 +16,7 @@ import {
   Menu,
   Plus,
   Settings,
+  ShieldCheck,
   Sparkles,
   Trophy,
   UserCircle2,
@@ -48,6 +49,7 @@ import { LudoBoard } from "./LudoBoard";
 import { RulesContent } from "./RulesScreen";
 import { Leaderboard } from "./LeaderboardScreen";
 import { AuthPanel } from "./AuthScreen";
+import { AdminPanel } from "./AdminScreen";
 import { SettingsPanel } from "./SettingsScreen";
 import { MatchHistory } from "./HistoryScreen";
 import { MissionsPanel } from "./MissionsScreen";
@@ -71,9 +73,9 @@ import {
 import { applyAnimations, loadAnimations, setAnimations as persistAnimations } from "@/lib/prefs";
 import { useServerFn } from "@tanstack/react-start";
 import { submitMatchResult } from "@/lib/match.functions";
-import { rollServerDie, startServerTurn } from "@/lib/live.functions";
+import { forfeitServerTurn, rollServerDie, startServerTurn } from "@/lib/live.functions";
 import { TurnTimer } from "./TurnTimer";
-import { MatchChat } from "./MatchChat";
+import { MatchChat, type ChatContext } from "./MatchChat";
 import {
   applyMove,
   applyRoll,
@@ -108,6 +110,7 @@ type Screen =
   | "ledger"
   | "opened"
   | "domino"
+  | "admin"
   | "game";
 
 const colorBg: Record<string, string> = {
@@ -126,7 +129,7 @@ export function LudoApp() {
 }
 
 function LudoShell() {
-  const { user, refreshProfile } = useAuth();
+  const { user, isAdmin, refreshProfile } = useAuth();
   const [screen, setScreen] = useState<Screen>("home");
   const [playerCount, setPlayerCount] = useState<2 | 3 | 4>(4);
   const [humanCount, setHumanCount] = useState(1);
@@ -151,9 +154,12 @@ function LudoShell() {
   const rollSeq = useRef(0);
   const clockOffset = useRef(0);
   const warned = useRef(0);
+  const turnSig = useRef<string | null>(null);
+  const rollingRef = useRef(false);
   const sendResult = useServerFn(submitMatchResult);
   const sendRoll = useServerFn(rollServerDie);
   const openTurn = useServerFn(startServerTurn);
+  const endTurn = useServerFn(forfeitServerTurn);
 
 
   useEffect(() => {
@@ -266,6 +272,7 @@ function LudoShell() {
   const handleRoll = async () => {
     if (rolling || game.phase !== "roll") return;
     initAudio();
+    rollingRef.current = true;
     setRolling(true);
     sfx.diceRoll();
     haptics.diceRoll();
@@ -293,6 +300,7 @@ function LudoShell() {
     });
     sfx.diceLand(value);
     haptics.diceLand();
+    rollingRef.current = false;
     setRolling(false);
   };
 
@@ -393,11 +401,13 @@ function LudoShell() {
       .then((res) => {
         if (!alive) return;
         clockOffset.current = res.serverNow - Date.now();
+        turnSig.current = res.sig;
         setDeadline(res.deadline);
         setServerSynced(true);
       })
       .catch(() => {
         if (!alive) return;
+        turnSig.current = null;
         setDeadline(Date.now() + TURN_SECONDS * 1000);
         setServerSynced(false);
       });
@@ -409,6 +419,7 @@ function LudoShell() {
 
   useEffect(() => {
     if (!timerActive || deadline === null) return;
+    const turnNo = game.turn;
     const tick = window.setInterval(() => {
       const left = (deadline - (Date.now() + clockOffset.current)) / 1000;
       setRemaining(Math.max(0, left));
@@ -420,15 +431,28 @@ function LudoShell() {
       }
       if (left <= 0) {
         window.clearInterval(tick);
-        sfx.timeout();
-        haptics.turnPass();
-        setDeadline(null);
-        setVerified(false);
-        setGame((g) => forfeitTurn(g));
+        // سباق: إذا كانت هناك رمية قيد التنفيذ لا يُنهى الدور حتى تكتمل نتيجتها
+        if (rollingRef.current) return;
+        const sig = turnSig.current;
+        const finish = () => {
+          sfx.timeout();
+          haptics.turnPass();
+          setDeadline(null);
+          setVerified(false);
+          setGame((g) => forfeitTurn(g));
+        };
+        if (!sig) { finish(); return; }
+        void endTurn({ data: { matchId: matchId.current, turn: turnNo, deadline, sig } })
+          .then((verdict) => {
+            // السيرفر هو من يقرّ انتهاء المهلة فعليًا
+            if (verdict.ok) finish();
+            else setDeadline(Date.now() + 1200);
+          })
+          .catch(() => finish());
       }
     }, 180);
     return () => window.clearInterval(tick);
-  }, [timerActive, deadline]);
+  }, [timerActive, deadline, game.turn, endTurn]);
 
 
   // احتفال + حفظ النتيجة (يتم التحقق منها في السيرفر)
@@ -498,6 +522,19 @@ function LudoShell() {
         timerActive={timerActive}
         serverSynced={serverSynced}
         meName={game.players.find((p) => !p.isBot)?.name ?? "أنا"}
+        chatContext={{
+          myTurn: !player.isBot,
+          secondsLeft: Math.ceil(remaining),
+          lastEvent: events.length
+            ? (events[events.length - 1]!.kind === "capture"
+              ? "capture"
+              : events[events.length - 1]!.kind === "home"
+                ? "home"
+                : events[events.length - 1]!.kind === "enter"
+                  ? "six"
+                  : null)
+            : null,
+        }}
         onMute={() => toggleMute()}
 
         onRoll={handleRoll}
@@ -514,7 +551,7 @@ function LudoShell() {
       <Starfield />
       <div className="relative mx-auto min-h-screen w-full max-w-md px-3 pb-24 pt-3 sm:pt-5">
         <TopBar muted={muted} onMute={() => toggleMute()} onMenu={() => navigate("home")} onAccount={() => navigate("account")} />
-        {screen === "home" && <HomeScreen navigate={navigate} quickPlay={startGame} dominoPlay={startDomino} />}
+        {screen === "home" && <HomeScreen navigate={navigate} quickPlay={startGame} dominoPlay={startDomino} isAdmin={isAdmin} />}
         {screen === "setup" && (
           <SetupScreen
             players={playerCount}
@@ -579,6 +616,11 @@ function LudoShell() {
         {screen === "opened" && (
           <PanelPage title="الصناديق المفتوحة" icon={<Gift />} onBack={() => navigate("home")}>
             <OpenedChestsPanel signedIn={Boolean(user)} />
+          </PanelPage>
+        )}
+        {screen === "admin" && (
+          <PanelPage title="لوحة التحكم" icon={<ShieldCheck />} onBack={() => navigate("home")}>
+            <AdminPanel />
           </PanelPage>
         )}
         {screen === "account" && (
@@ -657,7 +699,7 @@ function Brand() {
   );
 }
 
-function HomeScreen({ navigate, quickPlay, dominoPlay }: { navigate: (s: Screen) => void; quickPlay: () => void; dominoPlay: () => void }) {
+function HomeScreen({ navigate, quickPlay, dominoPlay, isAdmin }: { navigate: (s: Screen) => void; quickPlay: () => void; dominoPlay: () => void; isAdmin?: boolean }) {
   return (
     <main className="mt-3 space-y-4 pb-24">
       <h2 className="ribbon-title reflect-gloss">اختر نمط اللعب</h2>
@@ -683,6 +725,12 @@ function HomeScreen({ navigate, quickPlay, dominoPlay }: { navigate: (s: Screen)
           <SmallTile img={navSettings} label="الإعدادات" onClick={() => navigate("settings")} />
         </div>
       </section>
+
+      {isAdmin && (
+        <Button variant="royal" size="xl" className="w-full" onClick={() => navigate("admin")}>
+          <ShieldCheck /> لوحة تحكم المشرف
+        </Button>
+      )}
 
       <button className="glossy-card press-3d reflect-gloss flex w-full items-center gap-3 text-right" type="button" onClick={() => navigate("chests")}>
         <img src={giftBox} alt="" width={512} height={512} loading="lazy" className="asset-shine relative size-16 shrink-0" />
@@ -771,7 +819,7 @@ function BottomNav({ active, navigate }: { active: Screen; navigate: (s: Screen)
   );
 }
 
-function GameScreen({ state, moves, rolling, muted, celebrate, events, verified, remaining, timerActive, serverSynced, meName, onMute, onRoll, onToken, onHome, onRules, onRestart }: { state: GameState; moves: ReturnType<typeof legalMoves>; rolling: boolean; muted: boolean; celebrate: boolean; events: MatchEvent[]; verified: boolean; remaining: number; timerActive: boolean; serverSynced: boolean; meName: string; onMute: () => void; onRoll: () => void; onToken: (id: string) => void; onHome: () => void; onRules: () => void; onRestart: () => void }) {
+function GameScreen({ state, moves, rolling, muted, celebrate, events, verified, remaining, timerActive, serverSynced, meName, chatContext, onMute, onRoll, onToken, onHome, onRules, onRestart }: { state: GameState; moves: ReturnType<typeof legalMoves>; rolling: boolean; muted: boolean; celebrate: boolean; events: MatchEvent[]; verified: boolean; remaining: number; timerActive: boolean; serverSynced: boolean; meName: string; chatContext?: ChatContext | undefined; onMute: () => void; onRoll: () => void; onToken: (id: string) => void; onHome: () => void; onRules: () => void; onRestart: () => void }) {
   const player = currentPlayer(state);
   const seat = SEATS[player.seat];
   return <div className="ludo-shell min-h-screen" dir="rtl"><Starfield /><div className="crown-pattern fixed inset-0" aria-hidden="true" /><main className="relative mx-auto flex min-h-screen w-full max-w-xl flex-col px-2 pb-4 pt-2">
@@ -786,7 +834,7 @@ function GameScreen({ state, moves, rolling, muted, celebrate, events, verified,
     {state.phase === "over" && (
       <MatchSummary winnerName={player.name} events={events} onRestart={onRestart} onHome={onHome} />
     )}
-  </main><MatchChat meName={meName} />{celebrate && <Confetti />}</div>;
+  </main><MatchChat meName={meName} context={chatContext} />{celebrate && <Confetti />}</div>;
 }
 
 

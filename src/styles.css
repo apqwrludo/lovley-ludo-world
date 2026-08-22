@@ -299,6 +299,38 @@
 }
 .domino-rail::-webkit-scrollbar { display: none; }
 
+/* ===== ساحة الدومينو المفتوحة (بدون طاولة) ===== */
+.domino-arena {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 42vh;
+  padding: .5rem 0;
+  overflow: hidden;
+}
+.domino-arena::before {
+  content: "";
+  position: absolute;
+  inset: 8% 2%;
+  border-radius: 999px;
+  background: radial-gradient(60% 60% at 50% 50%, color-mix(in oklab, var(--ludo-gold) 16%, transparent) 0%, transparent 72%);
+  pointer-events: none;
+}
+.domino-chain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  align-content: center;
+  gap: .3rem .18rem;
+  transform-origin: center center;
+  transition: transform .25s ease;
+  will-change: transform;
+}
+.domino-arena .domino-tile { filter: drop-shadow(0 6px 10px rgb(0 0 0 / .45)); }
+
+
 /* ===== صناديق ثلاثية الأبعاد ===== */
 .chest-3d {
   position: relative;

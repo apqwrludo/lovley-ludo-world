@@ -130,7 +130,7 @@ export function DominoGame({
   const [selected, setSelected] = useState<string | null>(null);
   const moveCount = useRef(0);
   const reported = useRef(false);
-  const railRef = useRef<HTMLDivElement>(null);
+  const railRef = useRef<HTMLElement>(null);
 
   const player = currentDominoPlayer(state);
   const myMoves = useMemo(() => (player.isBot ? [] : legalPlays(state)), [state, player.isBot]);
@@ -194,9 +194,14 @@ export function DominoGame({
     });
   }, [state.phase, state.winner, state.players.length, mySeat, onFinish]);
 
-  useEffect(() => {
-    const rail = railRef.current;
-    if (rail) rail.scrollLeft = rail.scrollWidth / 2 - rail.clientWidth / 2;
+  /** تصغير تلقائي لسلسلة الحجارة كي تبقى متمركزة وواضحة دون تضييق على بعضها */
+  const boardScale = useMemo(() => {
+    const n = state.board.length;
+    if (n <= 6) return 1;
+    if (n <= 10) return 0.88;
+    if (n <= 16) return 0.76;
+    if (n <= 22) return 0.64;
+    return 0.54;
   }, [state.board.length]);
 
   const restart = () => {
@@ -250,13 +255,13 @@ export function DominoGame({
           ))}
         </div>
 
-        <section className="felt-table my-3 min-h-40">
+        <section className="domino-arena my-2" ref={railRef}>
           {state.board.length === 0 ? (
-            <p className="grid h-32 place-items-center text-sm text-ludo-soft">
-              ابدأ بوضع أي حجرة على الطاولة
+            <p className="text-center text-sm text-ludo-soft">
+              ابدأ بوضع أي حجرة في منتصف الساحة
             </p>
           ) : (
-            <div ref={railRef} className="domino-rail">
+            <div className="domino-chain" style={{ transform: `scale(${boardScale})` }}>
               {state.board.map((placed: PlacedTile) => (
                 <DominoTile
                   key={placed.tile.id}
@@ -303,7 +308,7 @@ export function DominoGame({
 
         <section className="mt-auto pt-4">
           <h2 className="ribbon-title mb-3">حجارتك</h2>
-          <div className="felt-table flex flex-wrap justify-center gap-2">
+          <div className="flex flex-wrap justify-center gap-2 rounded-2xl border border-ludo-gold/35 bg-ludo-panel/55 p-2">
             {(me?.hand ?? []).map((tile) => (
               <DominoTile
                 key={tile.id}
