@@ -194,15 +194,28 @@ export function DominoGame({
     });
   }, [state.phase, state.winner, state.players.length, mySeat, onFinish]);
 
-  /** تصغير تلقائي لسلسلة الحجارة كي تبقى متمركزة وواضحة دون تضييق على بعضها */
-  const boardScale = useMemo(() => {
-    const n = state.board.length;
-    if (n <= 6) return 1;
-    if (n <= 10) return 0.88;
-    if (n <= 16) return 0.76;
-    if (n <= 22) return 0.64;
-    return 0.54;
-  }, [state.board.length]);
+  /** قياس الساحة لتشكيل ثابت الأبعاد والاتجاهات مثل التصميم المرجعي */
+  const [arena, setArena] = useState({ w: 320, h: 260 });
+  useEffect(() => {
+    const el = railRef.current;
+    if (!el) return;
+    const measure = () => setArena({ w: el.clientWidth - 24, h: el.clientHeight - 20 });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const layout = useMemo(
+    () =>
+      layoutChain(
+        state.board.map((p) => ({ id: p.tile.id, left: p.left, right: p.right })),
+        arena.w,
+      ),
+    [state.board, arena.w],
+  );
+  const boardScale = useMemo(() => chainScale(layout, arena.w, arena.h), [layout, arena]);
+
 
   const restart = () => {
     moveCount.current = 0;
