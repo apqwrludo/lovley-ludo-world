@@ -71,11 +71,15 @@ import {
 import { applyAnimations, loadAnimations, setAnimations as persistAnimations } from "@/lib/prefs";
 import { useServerFn } from "@tanstack/react-start";
 import { submitMatchResult } from "@/lib/match.functions";
+import { rollServerDie, startServerTurn } from "@/lib/live.functions";
+import { TurnTimer } from "./TurnTimer";
+import { MatchChat } from "./MatchChat";
 import {
   applyMove,
   applyRoll,
   createGame,
   currentPlayer,
+  forfeitTurn,
   legalMoves,
   pickBotMove,
   rollDie,
@@ -84,6 +88,9 @@ import {
 } from "@/lib/ludo/engine";
 import { SEATS } from "@/lib/ludo/board";
 import { cn } from "@/lib/utils";
+
+const TURN_SECONDS = 15;
+
 
 type Screen =
   | "home"
@@ -133,11 +140,21 @@ function LudoShell() {
   const [volume, setVolume] = useState(0.6);
   const [animations, setAnimations] = useState(true);
   const [celebrate, setCelebrate] = useState(false);
+  const [verified, setVerified] = useState(false);
+  const [deadline, setDeadline] = useState<number | null>(null);
+  const [remaining, setRemaining] = useState(TURN_SECONDS);
+  const [serverSynced, setServerSynced] = useState(false);
   const savedFor = useRef<string | null>(null);
   const matchId = useRef<string>("");
   const matchStart = useRef<number>(0);
   const moveCount = useRef(0);
+  const rollSeq = useRef(0);
+  const clockOffset = useRef(0);
+  const warned = useRef(0);
   const sendResult = useServerFn(submitMatchResult);
+  const sendRoll = useServerFn(rollServerDie);
+  const openTurn = useServerFn(startServerTurn);
+
 
   useEffect(() => {
     setMuted(loadMuted());
@@ -245,24 +262,40 @@ function LudoShell() {
     [user, sendResult, refreshProfile],
   );
 
-  const handleRoll = () => {
+  // ===== المرحلة 9: رمية موثّقة من السيرفر =====
+  const handleRoll = async () => {
     if (rolling || game.phase !== "roll") return;
     initAudio();
     setRolling(true);
     sfx.diceRoll();
     haptics.diceRoll();
-    window.setTimeout(() => {
-      const value = rollDie();
-      setGame((g) => {
-        const next = applyRoll(g, value);
-        if (next.turn !== g.turn) window.setTimeout(() => { sfx.turnPass(); haptics.turnPass(); }, 180);
-        return next;
-      });
-      sfx.diceLand(value);
-      haptics.diceLand();
-      setRolling(false);
-    }, 620);
+    const seq = (rollSeq.current += 1);
+    const spin = new Promise((resolve) => window.setTimeout(resolve, 620));
+    let value = 0;
+    let trusted = false;
+    try {
+      const [res] = await Promise.all([
+        sendRoll({ data: { matchId: matchId.current, seq } }),
+        spin,
+      ]);
+      value = res.value;
+      trusted = Boolean(res.sig);
+    } catch {
+      await spin;
+      value = rollDie();
+      trusted = false;
+    }
+    setVerified(trusted);
+    setGame((g) => {
+      const next = applyRoll(g, value);
+      if (next.turn !== g.turn) window.setTimeout(() => { sfx.turnPass(); haptics.turnPass(); }, 180);
+      return next;
+    });
+    sfx.diceLand(value);
+    haptics.diceLand();
+    setRolling(false);
   };
+
 
   const commitMove = useCallback((state: GameState, move: ReturnType<typeof legalMoves>[number]) => {
     moveCount.current += 1;
@@ -345,6 +378,59 @@ function LudoShell() {
     return () => window.clearTimeout(timer);
   }, [game.phase, game.turn, game.dice, player.isBot, moves, commitMove]);
 
+  // ===== المرحلة 12: مؤقت 15 ثانية بتوقيت السيرفر =====
+  const timerActive = screen === "game" && game.phase !== "over" && !player.isBot;
+
+  useEffect(() => {
+    if (!timerActive) {
+      setDeadline(null);
+      return;
+    }
+    let alive = true;
+    warned.current = 0;
+    setRemaining(TURN_SECONDS);
+    void openTurn({ data: { matchId: matchId.current, turn: game.turn } })
+      .then((res) => {
+        if (!alive) return;
+        clockOffset.current = res.serverNow - Date.now();
+        setDeadline(res.deadline);
+        setServerSynced(true);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setDeadline(Date.now() + TURN_SECONDS * 1000);
+        setServerSynced(false);
+      });
+    return () => {
+      alive = false;
+    };
+    // بداية دور جديدة لكل لاعب
+  }, [timerActive, game.turn, openTurn]);
+
+  useEffect(() => {
+    if (!timerActive || deadline === null) return;
+    const tick = window.setInterval(() => {
+      const left = (deadline - (Date.now() + clockOffset.current)) / 1000;
+      setRemaining(Math.max(0, left));
+      const whole = Math.ceil(left);
+      if (whole <= 5 && whole >= 1 && warned.current !== whole) {
+        warned.current = whole;
+        sfx.warn();
+        haptics.tap();
+      }
+      if (left <= 0) {
+        window.clearInterval(tick);
+        sfx.timeout();
+        haptics.turnPass();
+        setDeadline(null);
+        setVerified(false);
+        setGame((g) => forfeitTurn(g));
+      }
+    }, 180);
+    return () => window.clearInterval(tick);
+  }, [timerActive, deadline]);
+
+
   // احتفال + حفظ النتيجة (يتم التحقق منها في السيرفر)
   useEffect(() => {
     if (game.phase !== "over" || game.winner === null) return;
@@ -407,7 +493,13 @@ function LudoShell() {
         muted={muted}
         celebrate={celebrate}
         events={events}
+        verified={verified}
+        remaining={remaining}
+        timerActive={timerActive}
+        serverSynced={serverSynced}
+        meName={game.players.find((p) => !p.isBot)?.name ?? "أنا"}
         onMute={() => toggleMute()}
+
         onRoll={handleRoll}
         onToken={handleToken}
         onHome={() => navigate("home")}
@@ -527,12 +619,12 @@ function TopBar({ muted, onMute, onMenu, onAccount }: { muted: boolean; onMute: 
         </button>
         <div className="min-w-0">
           <div className="flex items-center justify-end gap-2">
-            <button type="button" onClick={onAccount} className="hud-pill" aria-label="الذهب">
+            <button type="button" onClick={onAccount} className="hud-pill press-3d reflect-gloss" aria-label="الذهب">
               <img src={coinStack} alt="" width={512} height={512} loading="lazy" />
               <b>{user ? profile?.gold ?? 0 : 0}</b>
               <span className="hud-plus">+</span>
             </button>
-            <button type="button" onClick={onAccount} className="hud-pill" aria-label="الجواهر">
+            <button type="button" onClick={onAccount} className="hud-pill press-3d reflect-gloss" aria-label="الجواهر">
               <img src={gemEmerald} alt="" width={512} height={512} loading="lazy" />
               <b>{user ? profile?.diamonds ?? 0 : 0}</b>
               <span className="hud-plus">+</span>
@@ -544,7 +636,7 @@ function TopBar({ muted, onMute, onMenu, onAccount }: { muted: boolean; onMute: 
           </div>
         </div>
         <div className="grid gap-1">
-          <Button variant="neonIcon" size="icon" aria-label="القائمة" onClick={onMenu}><Menu /></Button>
+          <Button variant="neonIcon" size="icon" className="press-3d" aria-label="القائمة" onClick={onMenu}><Menu /></Button>
           <Button variant="neonIcon" size="icon" aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"} onClick={onMute}>
             {muted ? <VolumeX /> : <Volume2 />}
           </Button>
@@ -568,7 +660,7 @@ function Brand() {
 function HomeScreen({ navigate, quickPlay, dominoPlay }: { navigate: (s: Screen) => void; quickPlay: () => void; dominoPlay: () => void }) {
   return (
     <main className="mt-3 space-y-4 pb-24">
-      <h2 className="ribbon-title">اختر نمط اللعب</h2>
+      <h2 className="ribbon-title reflect-gloss">اختر نمط اللعب</h2>
 
       <div className="grid grid-cols-2 gap-3">
         <ModeCard tone="green" img={mode2p} title="لعب سريع" subtitle="ضد الروبوت" onClick={quickPlay} />
@@ -592,7 +684,7 @@ function HomeScreen({ navigate, quickPlay, dominoPlay }: { navigate: (s: Screen)
         </div>
       </section>
 
-      <button className="glossy-card flex w-full items-center gap-3 text-right" type="button" onClick={() => navigate("chests")}>
+      <button className="glossy-card press-3d reflect-gloss flex w-full items-center gap-3 text-right" type="button" onClick={() => navigate("chests")}>
         <img src={giftBox} alt="" width={512} height={512} loading="lazy" className="asset-shine relative size-16 shrink-0" />
         <span className="relative min-w-0 flex-1">
           <b className="block text-lg text-ludo-gold">هدية اليوم جاهزة!</b>
@@ -606,7 +698,7 @@ function HomeScreen({ navigate, quickPlay, dominoPlay }: { navigate: (s: Screen)
 
 function ModeCard({ tone, img, title, subtitle, onClick }: { tone: string; img: string; title: string; subtitle: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className={cn("mode-tile", `tile-${tone}`)}>
+    <button type="button" onClick={onClick} className={cn("mode-tile press-3d reflect-gloss", `tile-${tone}`)}>
       <img src={img} alt="" width={512} height={512} loading="lazy" />
       <b>{title}</b>
       <small>{subtitle}</small>
@@ -616,7 +708,7 @@ function ModeCard({ tone, img, title, subtitle, onClick }: { tone: string; img: 
 
 function SmallTile({ img, label, onClick }: { img: string; label: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="relative grid place-items-center gap-1 rounded-xl border border-white/15 bg-black/25 p-2 transition active:translate-y-0.5">
+    <button type="button" onClick={onClick} className="press-3d reflect-gloss relative grid place-items-center gap-1 rounded-xl border border-ludo-gold/25 bg-black/30 p-2 shadow-[inset_0_1px_0_rgb(255_255_255/.18),0_4px_0_#2c0722,0_8px_16px_rgb(0_0_0/.45)]">
       <img src={img} alt="" width={512} height={512} loading="lazy" className="asset-shine size-10" />
       <small className="text-[10px] font-bold text-ludo-soft">{label}</small>
     </button>
@@ -670,7 +762,7 @@ function BottomNav({ active, navigate }: { active: Screen; navigate: (s: Screen)
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto grid w-full max-w-md grid-cols-5 gap-1 border-t-2 border-ludo-gold/70 bg-[linear-gradient(180deg,#4a0d33,#170512)] px-2 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_24px_rgb(0_0_0/.55)]">
       {links.map(([id, icon, label]) => (
-        <button type="button" key={id} onClick={() => navigate(id)} className={cn("nav-3d", active === id && "nav-3d-active")}>
+        <button type="button" key={id} onClick={() => navigate(id)} className={cn("nav-3d press-3d", active === id && "nav-3d-active")}>
           <img src={icon} alt="" width={512} height={512} loading="lazy" />
           <span>{label}</span>
         </button>
@@ -679,20 +771,24 @@ function BottomNav({ active, navigate }: { active: Screen; navigate: (s: Screen)
   );
 }
 
-function GameScreen({ state, moves, rolling, muted, celebrate, events, onMute, onRoll, onToken, onHome, onRules, onRestart }: { state: GameState; moves: ReturnType<typeof legalMoves>; rolling: boolean; muted: boolean; celebrate: boolean; events: MatchEvent[]; onMute: () => void; onRoll: () => void; onToken: (id: string) => void; onHome: () => void; onRules: () => void; onRestart: () => void }) {
+function GameScreen({ state, moves, rolling, muted, celebrate, events, verified, remaining, timerActive, serverSynced, meName, onMute, onRoll, onToken, onHome, onRules, onRestart }: { state: GameState; moves: ReturnType<typeof legalMoves>; rolling: boolean; muted: boolean; celebrate: boolean; events: MatchEvent[]; verified: boolean; remaining: number; timerActive: boolean; serverSynced: boolean; meName: string; onMute: () => void; onRoll: () => void; onToken: (id: string) => void; onHome: () => void; onRules: () => void; onRestart: () => void }) {
   const player = currentPlayer(state);
   const seat = SEATS[player.seat];
   return <div className="ludo-shell min-h-screen" dir="rtl"><Starfield /><div className="crown-pattern fixed inset-0" aria-hidden="true" /><main className="relative mx-auto flex min-h-screen w-full max-w-xl flex-col px-2 pb-4 pt-2">
-    <header className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2"><Button variant="neonIcon" size="icon" aria-label="الرئيسية" onClick={onHome}><Home /></Button><Button variant="neonIcon" size="icon" aria-label="القواعد" onClick={onRules}><BookOpen /></Button><Brand /><Button variant="neonIcon" size="icon" aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"} onClick={onMute}>{muted ? <VolumeX /> : <Volume2 />}</Button></header>
+    <header className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2"><Button variant="neonIcon" size="icon" className="press-3d" aria-label="الرئيسية" onClick={onHome}><Home /></Button><Button variant="neonIcon" size="icon" className="press-3d" aria-label="القواعد" onClick={onRules}><BookOpen /></Button><Brand /><Button variant="neonIcon" size="icon" className="press-3d" aria-label={muted ? "تشغيل الصوت" : "كتم الصوت"} onClick={onMute}>{muted ? <VolumeX /> : <Volume2 />}</Button></header>
     <div className="mt-2 grid grid-cols-2 gap-2">{state.players.slice(0, 2).map((p) => <PlayerPlate key={p.seat} state={state} seatId={p.seat} />)}</div>
-    <section className="board-wood relative mx-auto my-2 w-full max-w-[min(92vw,34rem)]"><LudoBoard state={state} moves={moves} onTokenClick={onToken} /></section>
+    <section className="board-wood reflect-gloss relative mx-auto my-2 w-full max-w-[min(92vw,34rem)]"><LudoBoard state={state} moves={moves} onTokenClick={onToken} /></section>
     <div className="grid grid-cols-2 gap-2">{state.players.slice(2).map((p) => <PlayerPlate key={p.seat} state={state} seatId={p.seat} />)}</div>
-    <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 pt-4"><div className="min-w-0 text-center"><p className="truncate text-sm font-bold text-ludo-gold">{state.message}</p><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ludo-panel"><span className={cn("block h-full w-1/2", colorBg[seat.token])} /></div></div><Dice value={state.dice} rolling={rolling} disabled={state.phase !== "roll" || player.isBot} onRoll={onRoll} seatToken={seat.token} /></div>
+    {timerActive && state.phase !== "over" && (
+      <div className="mt-2 flex justify-center"><TurnTimer remaining={remaining} limit={15} name={player.name} serverSynced={serverSynced} /></div>
+    )}
+    <div className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 pt-4"><div className="min-w-0 text-center"><p className="truncate text-sm font-bold text-ludo-gold">{state.message}</p><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ludo-panel"><span className={cn("block h-full w-1/2", colorBg[seat.token])} /></div></div><Dice value={state.dice} rolling={rolling} disabled={state.phase !== "roll" || player.isBot} onRoll={onRoll} seatToken={seat.token} verified={verified} /></div>
     {state.phase === "over" && (
       <MatchSummary winnerName={player.name} events={events} onRestart={onRestart} onHome={onHome} />
     )}
-  </main>{celebrate && <Confetti />}</div>;
+  </main><MatchChat meName={meName} />{celebrate && <Confetti />}</div>;
 }
+
 
 function PlayerPlate({ state, seatId }: { state: GameState; seatId: 0 | 1 | 2 | 3 }) {
   const p = state.players.find((x) => x.seat === seatId);

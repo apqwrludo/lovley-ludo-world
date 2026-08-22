@@ -133,6 +133,21 @@ export const sfx = {
   start() {
     [392, 523, 659, 784].forEach((f, i) => tone(f, i * 0.09, 0.22, "triangle", 0.18));
   },
+  /** نبضة عدّاد الوقت */
+  tick() {
+    tone(880, 0, 0.05, "square", 0.09);
+  },
+  /** تحذير آخر 5 ثوانٍ */
+  warn() {
+    tone(1180, 0, 0.07, "square", 0.14);
+    tone(880, 0.08, 0.08, "square", 0.12);
+  },
+  /** انتهاء المهلة */
+  timeout() {
+    tone(300, 0, 0.16, "sawtooth", 0.2);
+    tone(190, 0.14, 0.24, "sawtooth", 0.18);
+    noiseBurst(0, 0.2, 0.18, 800);
+  },
   win() {
     [523, 659, 784, 1046, 1318].forEach((f, i) => tone(f, i * 0.12, 0.42, "triangle", 0.2));
     noiseBurst(0.1, 0.5, 0.14, 3800);
