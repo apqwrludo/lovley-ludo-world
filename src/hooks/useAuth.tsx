@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /** التحقق من صلاحية الأدمن في السيرفر (لا يوجد أي بيانات سرية في الواجهة) */
   const syncRole = useCallback(async () => {
     try {
-      const res = await syncAdminRole({ data: undefined as never });
+      const res = await syncAdminRole();
       setIsAdmin(Boolean(res?.isAdmin));
     } catch {
       setIsAdmin(false);
