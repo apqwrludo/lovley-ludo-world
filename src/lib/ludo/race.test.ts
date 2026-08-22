@@ -29,7 +29,7 @@ describe("حالات السباق بين المؤقت والرمية والدر�
   it("المهلة لا تُلغي حركة تم تنفيذها بالفعل", () => {
     let state: GameState = createGame(4, 1);
     state = applyRoll(state, 6);
-    const moves = legalMoves(state);
+    const moves = legalMoves(state, 6);
     expect(moves.length).toBeGreaterThan(0);
     const moved = applyMove(state, moves[0]!);
     const tokensOnBoard = moved.tokens.filter((t) => t.pos >= 0).length;
