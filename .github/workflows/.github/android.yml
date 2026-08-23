@@ -18,13 +18,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
+
+      - name: Install Capacitor
+        run: npm install @capacitor/core @capacitor/cli @capacitor/android
 
       - name: Build web app
         run: npm run build
+
+      - name: Create Android project
+        run: npx cap add android
+
+      - name: Sync Capacitor
+        run: npx cap sync android
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -34,16 +42,6 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-
-      - name: Check Capacitor
-        run: |
-          if [ ! -d "android" ]; then
-            echo "Android/Capacitor project is not configured yet."
-            exit 1
-          fi
-
-      - name: Sync Capacitor
-        run: npx cap sync android
 
       - name: Build APK
         working-directory: android
@@ -56,11 +54,11 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk
+          name: LUDU-APK
           path: android/app/build/outputs/apk/debug/*.apk
 
       - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
-          name: android-aab
+          name: LUDU-AAB
           path: android/app/build/outputs/bundle/release/*.aab
