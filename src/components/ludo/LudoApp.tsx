@@ -560,7 +560,7 @@ function LudoShell() {
         humanCount={humanCount}
         muted={muted}
         onMute={() => toggleMute()}
-        onHome={() => navigate("home")}
+        onHome={() => navigate(inRoom ? "rooms" : "home")}
         onFinish={({ winnerSeat, mySeat, players, moves }) => {
           showCelebration(3200);
           reportMatch({
@@ -605,7 +605,7 @@ function LudoShell() {
 
         onRoll={handleRoll}
         onToken={handleToken}
-        onHome={() => navigate("home")}
+        onHome={() => navigate(inRoom ? "rooms" : "home")}
         onRules={() => navigate("rules")}
         onRestart={startGame}
       />
