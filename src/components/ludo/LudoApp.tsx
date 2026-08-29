@@ -998,30 +998,6 @@ function SetupScreen({
   );
 }
 
-function RoomsScreen({ onBack, onPlay }: { onBack: () => void; onPlay: () => void }) {
-  const rooms = ["غرفة المرح", "أصدقاء عبقور", "تحدّي الأبطال", "شوق اللعبة"];
-  return (
-    <PanelPage title="الغرف المتاحة" icon={<Users />} onBack={onBack}>
-      <div className="space-y-2">
-        {rooms.map((name, i) => (
-          <div className="list-card" key={name}>
-            <span className="avatar-orb bg-ludo-purple text-ludo-gold">{i + 1}</span>
-            <span className="min-w-0 flex-1">
-              <b className="block truncate">{name}</b>
-              <small className="text-ludo-soft">{i % 2 ? "2 / 4" : "3 / 4"} لاعبين</small>
-            </span>
-            <Button variant="play" size="sm" onClick={onPlay}>
-              انضم
-            </Button>
-          </div>
-        ))}
-      </div>
-      <Button variant="royal" className="mt-4 w-full">
-        <Plus /> إنشاء غرفة
-      </Button>
-    </PanelPage>
-  );
-}
 
 function RewardsScreen({ onBack }: { onBack: () => void }) {
   const items = [
