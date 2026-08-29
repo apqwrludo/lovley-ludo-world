@@ -63,6 +63,7 @@ import { OpenedChestsPanel } from "./OpenedChestsScreen";
 import { DominoGame } from "@/components/domino/DominoGame";
 import { SplashScreen } from "./SplashScreen";
 import { GateScreen } from "./GateScreen";
+import { RoomsPanel, type RoomLaunch } from "./RoomsScreen";
 import { MatchSummary, type MatchEvent } from "./MatchSummary";
 import { haptics, loadHaptics, setHaptics as persistHaptics } from "@/lib/haptics";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
@@ -151,6 +152,7 @@ function LudoShell() {
   const [deadline, setDeadline] = useState<number | null>(null);
   const [remaining, setRemaining] = useState(TURN_SECONDS);
   const [serverSynced, setServerSynced] = useState(false);
+  const [inRoom, setInRoom] = useState(false);
   const savedFor = useRef<string | null>(null);
   const matchId = useRef<string>("");
   const matchStart = useRef<number>(0);
@@ -223,6 +225,7 @@ function LudoShell() {
 
   const startGame = () => {
     initAudio();
+    setInRoom(false);
     setGame(createGame(playerCount, Math.min(humanCount, playerCount)));
     savedFor.current = null;
     matchId.current = crypto.randomUUID();
@@ -236,12 +239,38 @@ function LudoShell() {
 
   const startDomino = () => {
     initAudio();
+    setInRoom(false);
     matchId.current = crypto.randomUUID();
     matchStart.current = Date.now();
     savedFor.current = null;
     sfx.start();
     setScreen("domino");
   };
+
+  /** بدء مباراة غرفة حقيقية بمعرّف مباراة موحّد لكل الأعضاء */
+  const launchRoomMatch = useCallback(
+    (launch: RoomLaunch) => {
+      initAudio();
+      const count = Math.min(4, Math.max(2, launch.names.length)) as 2 | 3 | 4;
+      setInRoom(true);
+      setPlayerCount(count);
+      setHumanCount(count);
+      savedFor.current = null;
+      matchId.current = launch.matchId;
+      matchStart.current = Date.now();
+      moveCount.current = 0;
+      setEvents([]);
+      sfx.start();
+      if (launch.mode === "domino") {
+        setScreen("domino");
+        return;
+      }
+      setGame(createGame(count, count, launch.names.slice(0, count)));
+      setScreen("game");
+      showCelebration(1600);
+    },
+    [showCelebration],
+  );
 
   const reportMatch = useCallback(
     (payload: {
@@ -535,7 +564,7 @@ function LudoShell() {
         humanCount={humanCount}
         muted={muted}
         onMute={() => toggleMute()}
-        onHome={() => navigate("home")}
+        onHome={() => navigate(inRoom ? "rooms" : "home")}
         onFinish={({ winnerSeat, mySeat, players, moves }) => {
           showCelebration(3200);
           reportMatch({
@@ -580,7 +609,7 @@ function LudoShell() {
 
         onRoll={handleRoll}
         onToken={handleToken}
-        onHome={() => navigate("home")}
+        onHome={() => navigate(inRoom ? "rooms" : "home")}
         onRules={() => navigate("rules")}
         onRestart={startGame}
       />
@@ -615,7 +644,11 @@ function LudoShell() {
             onBack={() => navigate("home")}
           />
         )}
-        {screen === "rooms" && <RoomsScreen onBack={() => navigate("home")} onPlay={startGame} />}
+        {screen === "rooms" && (
+          <PanelPage title="غرف اللعب" icon={<Users />} onBack={() => navigate("home")}>
+            <RoomsPanel meId={user?.id ?? null} onLaunch={launchRoomMatch} />
+          </PanelPage>
+        )}
         {screen === "rewards" && <RewardsScreen onBack={() => navigate("home")} />}
         {screen === "tournaments" && <TournamentsScreen onBack={() => navigate("home")} />}
         {screen === "rules" && (
@@ -994,31 +1027,6 @@ function SetupScreen({
   );
 }
 
-function RoomsScreen({ onBack, onPlay }: { onBack: () => void; onPlay: () => void }) {
-  const rooms = ["غرفة المرح", "أصدقاء عبقور", "تحدّي الأبطال", "شوق اللعبة"];
-  return (
-    <PanelPage title="الغرف المتاحة" icon={<Users />} onBack={onBack}>
-      <div className="space-y-2">
-        {rooms.map((name, i) => (
-          <div className="list-card" key={name}>
-            <span className="avatar-orb bg-ludo-purple text-ludo-gold">{i + 1}</span>
-            <span className="min-w-0 flex-1">
-              <b className="block truncate">{name}</b>
-              <small className="text-ludo-soft">{i % 2 ? "2 / 4" : "3 / 4"} لاعبين</small>
-            </span>
-            <Button variant="play" size="sm" onClick={onPlay}>
-              انضم
-            </Button>
-          </div>
-        ))}
-      </div>
-      <Button variant="royal" className="mt-4 w-full">
-        <Plus /> إنشاء غرفة
-      </Button>
-    </PanelPage>
-  );
-}
-
 function RewardsScreen({ onBack }: { onBack: () => void }) {
   const items = [
     ["🪙", "1000 عملة"],
@@ -1332,7 +1340,6 @@ function GameScreen({
             />
           )}
         </div>
-
 
         {/* أزرار الدردشة والإيموجي كما في التصميم */}
         <div className="mt-3 flex items-center gap-2">

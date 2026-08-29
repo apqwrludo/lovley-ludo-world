@@ -50,11 +50,15 @@ const SEAT_LAYOUTS: Record<number, SeatId[]> = {
   4: [0, 1, 2, 3],
 };
 
-export function createGame(playerCount: 2 | 3 | 4, humanCount: number): GameState {
+export function createGame(
+  playerCount: 2 | 3 | 4,
+  humanCount: number,
+  names?: string[],
+): GameState {
   const seats = SEAT_LAYOUTS[playerCount] ?? SEAT_LAYOUTS[4] ?? [0, 1, 2, 3];
   const players: Player[] = seats.map((seat, i) => ({
     seat,
-    name: i < humanCount ? `لاعب ${i + 1}` : `روبوت ${i - humanCount + 1}`,
+    name: names?.[i] ?? (i < humanCount ? `لاعب ${i + 1}` : `روبوت ${i - humanCount + 1}`),
     isBot: i >= humanCount,
   }));
 
