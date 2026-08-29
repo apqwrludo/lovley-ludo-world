@@ -615,7 +615,11 @@ function LudoShell() {
             onBack={() => navigate("home")}
           />
         )}
-        {screen === "rooms" && <RoomsScreen onBack={() => navigate("home")} onPlay={startGame} />}
+        {screen === "rooms" && (
+          <PanelPage title="غرف اللعب" icon={<Users />} onBack={() => navigate("home")}>
+            <RoomsPanel meId={user?.id ?? null} onLaunch={launchRoomMatch} />
+          </PanelPage>
+        )}
         {screen === "rewards" && <RewardsScreen onBack={() => navigate("home")} />}
         {screen === "tournaments" && <TournamentsScreen onBack={() => navigate("home")} />}
         {screen === "rules" && (
