@@ -225,6 +225,7 @@ function LudoShell() {
 
   const startGame = () => {
     initAudio();
+    setInRoom(false);
     setGame(createGame(playerCount, Math.min(humanCount, playerCount)));
     savedFor.current = null;
     matchId.current = crypto.randomUUID();
@@ -238,6 +239,7 @@ function LudoShell() {
 
   const startDomino = () => {
     initAudio();
+    setInRoom(false);
     matchId.current = crypto.randomUUID();
     matchStart.current = Date.now();
     savedFor.current = null;
