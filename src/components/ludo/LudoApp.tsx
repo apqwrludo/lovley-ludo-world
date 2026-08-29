@@ -63,6 +63,7 @@ import { OpenedChestsPanel } from "./OpenedChestsScreen";
 import { DominoGame } from "@/components/domino/DominoGame";
 import { SplashScreen } from "./SplashScreen";
 import { GateScreen } from "./GateScreen";
+import { RoomsPanel, type RoomLaunch } from "./RoomsScreen";
 import { MatchSummary, type MatchEvent } from "./MatchSummary";
 import { haptics, loadHaptics, setHaptics as persistHaptics } from "@/lib/haptics";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
