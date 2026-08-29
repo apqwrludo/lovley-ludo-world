@@ -152,6 +152,7 @@ function LudoShell() {
   const [deadline, setDeadline] = useState<number | null>(null);
   const [remaining, setRemaining] = useState(TURN_SECONDS);
   const [serverSynced, setServerSynced] = useState(false);
+  const [inRoom, setInRoom] = useState(false);
   const savedFor = useRef<string | null>(null);
   const matchId = useRef<string>("");
   const matchStart = useRef<number>(0);
