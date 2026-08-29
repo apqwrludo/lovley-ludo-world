@@ -153,7 +153,12 @@ export function RoomsPanel({
       )
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "room_messages", filter: `room_id=eq.${roomId}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "room_messages",
+          filter: `room_id=eq.${roomId}`,
+        },
         (payload) => {
           setMessages((prev) => [...prev.slice(-99), payload.new as Message]);
           sfx.chat?.();
@@ -215,7 +220,8 @@ export function RoomsPanel({
         _code: value.trim().toUpperCase(),
       });
       if (err) throw new Error(err.message);
-      const res = (data ?? [])[0] as { room_id: string | null; ok: boolean; reason: string | null } | undefined;
+      const res = (data ?? [])[0] as
+        { room_id: string | null; ok: boolean; reason: string | null } | undefined;
       if (!res?.ok || !res.room_id) throw new Error(res?.reason ?? "تعذّر الانضمام");
       sfx.tap();
       haptics.tap();
@@ -556,7 +562,12 @@ export function RoomsPanel({
           <span className="flex items-center gap-2">
             <Users className="size-4" /> الغرف العامة
           </span>
-          <Button variant="ghostGold" size="icon" aria-label="تحديث" onClick={() => void loadPublic()}>
+          <Button
+            variant="ghostGold"
+            size="icon"
+            aria-label="تحديث"
+            onClick={() => void loadPublic()}
+          >
             <RefreshCw className="size-4" />
           </Button>
         </h3>
@@ -569,7 +580,11 @@ export function RoomsPanel({
             return (
               <div className="list-card" key={r.id}>
                 <span className="avatar-orb bg-ludo-purple text-ludo-gold">
-                  {r.mode === "domino" ? <Layers className="size-5" /> : <Crown className="size-5" />}
+                  {r.mode === "domino" ? (
+                    <Layers className="size-5" />
+                  ) : (
+                    <Crown className="size-5" />
+                  )}
                 </span>
                 <span className="min-w-0 flex-1">
                   <b className="block truncate">{r.name}</b>

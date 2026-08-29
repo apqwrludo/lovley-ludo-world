@@ -248,27 +248,29 @@ function LudoShell() {
   };
 
   /** بدء مباراة غرفة حقيقية بمعرّف مباراة موحّد لكل الأعضاء */
-  const launchRoomMatch = useCallback((launch: RoomLaunch) => {
-    initAudio();
-    const count = Math.min(4, Math.max(2, launch.names.length)) as 2 | 3 | 4;
-    setInRoom(true);
-    setPlayerCount(count);
-    setHumanCount(count);
-    savedFor.current = null;
-    matchId.current = launch.matchId;
-    matchStart.current = Date.now();
-    moveCount.current = 0;
-    setEvents([]);
-    sfx.start();
-    if (launch.mode === "domino") {
-      setScreen("domino");
-      return;
-    }
-    setGame(createGame(count, count, launch.names.slice(0, count)));
-    setScreen("game");
-    showCelebration(1600);
-  }, [showCelebration]);
-
+  const launchRoomMatch = useCallback(
+    (launch: RoomLaunch) => {
+      initAudio();
+      const count = Math.min(4, Math.max(2, launch.names.length)) as 2 | 3 | 4;
+      setInRoom(true);
+      setPlayerCount(count);
+      setHumanCount(count);
+      savedFor.current = null;
+      matchId.current = launch.matchId;
+      matchStart.current = Date.now();
+      moveCount.current = 0;
+      setEvents([]);
+      sfx.start();
+      if (launch.mode === "domino") {
+        setScreen("domino");
+        return;
+      }
+      setGame(createGame(count, count, launch.names.slice(0, count)));
+      setScreen("game");
+      showCelebration(1600);
+    },
+    [showCelebration],
+  );
 
   const reportMatch = useCallback(
     (payload: {
@@ -1025,7 +1027,6 @@ function SetupScreen({
   );
 }
 
-
 function RewardsScreen({ onBack }: { onBack: () => void }) {
   const items = [
     ["🪙", "1000 عملة"],
@@ -1339,7 +1340,6 @@ function GameScreen({
             />
           )}
         </div>
-
 
         {/* أزرار الدردشة والإيموجي كما في التصميم */}
         <div className="mt-3 flex items-center gap-2">
